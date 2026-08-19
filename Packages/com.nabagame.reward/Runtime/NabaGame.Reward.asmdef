@@ -1,0 +1,19 @@
+{
+    "name": "NabaGame.Reward",
+    "rootNamespace": "NabaGame.Reward",
+    "references": [
+        "com.bmh.core.runtime",
+        "com.nabagame.ui.runtime",
+        "UniTask",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

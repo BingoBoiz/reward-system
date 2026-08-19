@@ -1,0 +1,23 @@
+{
+  "name": "com.nabagame.reward",
+  "version": "0.4.0",
+  "displayName": "NabaGame Reward",
+  "description": "Reusable reward features for NabaGame projects: Daily Reward, Online Reward (timed grid with x2/x5 ad speed-up), Lucky Spin. Game-agnostic: reward payouts, audio, and ads are provided by the host game through a small hooks contract. See Documentation~ for architecture and integration guides.",
+  "unity": "2022.3",
+  "author": {
+    "name": "NabaGame"
+  },
+  "keywords": [
+    "reward",
+    "daily",
+    "spin",
+    "nabagame"
+  ],
+  "samples": [
+    {
+      "displayName": "Reward Demo",
+      "description": "Runnable demo of Daily Reward and Lucky Spin: two scenes, panel + template prefabs, sample RewardItem/config assets, home buttons with red-dot badges, and a SampleRewardGranter showing how a host maps RewardItem.Key onto its own economy.",
+      "path": "Samples~/RewardDemo"
+    }
+  ]
+}

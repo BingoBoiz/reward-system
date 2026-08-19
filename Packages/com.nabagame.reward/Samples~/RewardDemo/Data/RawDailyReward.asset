@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b6aec294facc0844888d0f2de71d67f4, type: 3}
+  m_Name: RawDailyReward
+  m_EditorClassIdentifier: 
+  dailyRewardRows:
+  - Day: 1
+    Key: cash
+    Amount: 7500000
+    LabelOverride: '-'
+    HideIconUntilClaim: 0
+  - Day: 2
+    Key: spin
+    Amount: 1
+    LabelOverride: RARE
+    HideIconUntilClaim: 0
+  - Day: 3
+    Key: spin
+    Amount: 10
+    LabelOverride: '-'
+    HideIconUntilClaim: 0
+  - Day: 4
+    Key: cash
+    Amount: 15000000
+    LabelOverride: '-'
+    HideIconUntilClaim: 0
+  - Day: 5
+    Key: cash
+    Amount: 30000000
+    LabelOverride: '-'
+    HideIconUntilClaim: 0
+  - Day: 6
+    Key: cash
+    Amount: 75000000
+    LabelOverride: '-'
+    HideIconUntilClaim: 0
+  - Day: 7
+    Key: noads
+    Amount: 1
+    LabelOverride: ???
+    HideIconUntilClaim: 1
