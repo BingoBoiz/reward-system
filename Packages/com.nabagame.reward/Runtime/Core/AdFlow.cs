@@ -1,6 +1,5 @@
 using System;
 using Cysharp.Threading.Tasks;
-using UnityEngine;
 
 namespace NabaGame.Reward
 {
@@ -8,40 +7,39 @@ namespace NabaGame.Reward
     // a mediation SDK can drop a request without firing either callback
     public sealed class AdFlow
     {
-        readonly RewardHooks hooks;
+        const float busyTimeoutSeconds = 15f;
 
         public bool Busy { get; private set; }
 
-        public AdFlow(RewardHooks rewardHooks)
-        {
-            hooks = rewardHooks;
-        }
+        int generation;
 
         public bool Show(string placement, Action onReward, Action onSkip = null)
         {
             if (Busy) return false;
             Busy = true;
-
-            if (Application.isEditor)
-            {
-                Release(onReward);
-                return true;
-            }
-
-            hooks.ShowRewardedAd(placement, () => Release(onReward), () => Release(onSkip));
+            int id = ++generation;
+            ReleaseAfterTimeout(id).Forget();
+            RewardHooks.ShowRewardedAd(placement, () => Release(id, onReward), () => Release(id, onSkip));
             return true;
         }
 
-        void Release(Action callback)
+        void Release(int id, Action callback)
         {
-            ReleaseNextFrame().Forget();
+            ReleaseNextFrame(id).Forget();
             callback?.Invoke();
         }
 
-        async UniTaskVoid ReleaseNextFrame()
+        async UniTaskVoid ReleaseNextFrame(int id)
         {
             await UniTask.NextFrame();
-            Busy = false;
+            if (id == generation) Busy = false;
+        }
+
+        // a host SDK can swallow both callbacks (interval throttle); never leave the buttons dead
+        async UniTaskVoid ReleaseAfterTimeout(int id)
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(busyTimeoutSeconds), DelayType.Realtime);
+            if (id == generation) Busy = false;
         }
     }
 }

@@ -17,7 +17,7 @@ namespace NabaGame.Reward.Sample
         Tween cashTween;
         Tween spinTween;
 
-        public void StartClass()
+        public void SetInfo()
         {
             EventManager.Instance.RemoveListener<SampleCurrencyChangedEvent>(OnCurrencyChanged);
             EventManager.Instance.AddListener<SampleCurrencyChangedEvent>(OnCurrencyChanged);

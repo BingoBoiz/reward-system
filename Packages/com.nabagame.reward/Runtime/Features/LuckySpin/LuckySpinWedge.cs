@@ -14,11 +14,11 @@ namespace NabaGame.Reward
 
         public int Index { get; private set; }
 
-        public void StartClass(int index, LuckySpinRow row, RewardItem item)
+        public void SetInfo(int index, LuckySpinRow row)
         {
             Index = index;
-            icon.sprite = item.Icon;
-            amountLabel.text = "+" + RewardAmountFormat.Short(row.Amount);
+            if (icon) icon.sprite = row.Icon;
+            if (amountLabel) amountLabel.text = "+" + RewardAmountFormat.Short(row.Amount);
         }
 
         public void KeepUpright(float wheelZ)

@@ -1,0 +1,141 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6278867586885567127
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3247998948734331318}
+  - component: {fileID: 2156268005215531139}
+  m_Layer: 0
+  m_Name: SampleOnlineRewardManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3247998948734331318
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6278867586885567127}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2156268005215531139
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6278867586885567127}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e4fd732e9962a04685429aaace7a78a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rows:
+  - Slot: 1
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 100
+    UnlockAfterSeconds: 60
+  - Slot: 2
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 200
+    UnlockAfterSeconds: 120
+  - Slot: 3
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 300
+    UnlockAfterSeconds: 180
+  - Slot: 4
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 400
+    UnlockAfterSeconds: 240
+  - Slot: 5
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 500
+    UnlockAfterSeconds: 300
+  - Slot: 6
+    Key: spin
+    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Amount: 1
+    UnlockAfterSeconds: 360
+  - Slot: 7
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 700
+    UnlockAfterSeconds: 420
+  - Slot: 8
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 900
+    UnlockAfterSeconds: 480
+  - Slot: 9
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 1100
+    UnlockAfterSeconds: 540
+  - Slot: 10
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 1300
+    UnlockAfterSeconds: 600
+  - Slot: 11
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 1500
+    UnlockAfterSeconds: 660
+  - Slot: 12
+    Key: spin
+    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Amount: 2
+    UnlockAfterSeconds: 720
+  - Slot: 13
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 2000
+    UnlockAfterSeconds: 780
+  - Slot: 14
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 2500
+    UnlockAfterSeconds: 840
+  - Slot: 15
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 3000
+    UnlockAfterSeconds: 900
+  - Slot: 16
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 4000
+    UnlockAfterSeconds: 960
+  - Slot: 17
+    Key: cash
+    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Amount: 5000
+    UnlockAfterSeconds: 1020
+  - Slot: 18
+    Key: spin
+    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Amount: 3
+    UnlockAfterSeconds: 1080
+  x2DurationSeconds: 120
+  x5DurationSeconds: 120
+  x5AdsRequired: 2
+  claimSfx: {fileID: 0}

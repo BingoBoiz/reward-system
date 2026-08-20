@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NabaGame.Core.Runtime.EventManager;
 using NabaGame.UI;
@@ -8,66 +9,82 @@ using UnityEngine.UI;
 
 namespace NabaGame.Reward
 {
+    public enum DailyState
+    {
+        Locked,
+        Claimable,
+        Claimed
+    }
+
     public class DailyRewardPanel : BaseUI
     {
-        [SerializeField] Button closeButton;
-        [SerializeField] Button openAllButton;
-        [SerializeField] TMP_Text openAllLabel;
-        [SerializeField] RectTransform cardsRoot;
-        [SerializeField] DailyRewardCard cardTemplate;
-        [SerializeField] Sprite[] cardBackgrounds;
-        [SerializeField] float cardSpacing = 289f;
-        [SerializeField] float cardStaggerDelay = 0.04f;
-        [SerializeField] Color openAllDisabledTint = new Color(0.68f, 0.68f, 0.68f, 1f);
-        [SerializeField] AudioClip buttonSfx;
+        public const string SaveKey = "NabaReward.Daily";
+        public const int ProfileVersion = 1;
+        public const string OpenAllPlacement = "DailyReward_OpenAll";
+
+        [ShowInInspector, ReadOnly, TableList, PropertyOrder(-1)]
+        List<DailyRewardRow> rows = new List<DailyRewardRow>(); // dữ liệu do manager truyền vào
+
+        [SerializeField, TabGroup("Tabs", "Config")] int openAllAdsRequired; // số ads để mở toàn bộ
+        [SerializeField, TabGroup("Tabs", "Config")] string openAllIapProductId = ""; // id gói IAP mở toàn bộ
+        [SerializeField, TabGroup("Tabs", "Config")] string openAllIapPriceText = ""; // giá hiển thị trên nút IAP
+
+        [SerializeField, TabGroup("Tabs", "UI")] Button closeButton; // nút đóng panel
+        [SerializeField, TabGroup("Tabs", "UI")] GameObject comeBackLabel; // chữ hiện khi nhận hết
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] Button openAllAdsButton; // nút xem ads mở toàn bộ
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllAdsCountLabel; // chữ đếm số ads đã xem
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] Button openAllIapButton; // nút mua IAP mở toàn bộ
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllIapPriceLabel; // chữ giá tiền trên nút
+        [SerializeField, FoldoutGroup("Tabs/UI/Cards")] RectTransform cardsRoot; // chỗ chứa các thẻ ngày
+        [SerializeField, FoldoutGroup("Tabs/UI/Cards")] DailyRewardCard cardTemplate; // thẻ mẫu để nhân bản
+        [SerializeField, FoldoutGroup("Tabs/UI/Cards")] Sprite[] cardBackgrounds; // nền thẻ, lặp theo thứ tự
+
+        [SerializeField, TabGroup("Tabs", "FX")] float cardSpacing = 289f; // khoảng cách giữa các thẻ
+        [SerializeField, TabGroup("Tabs", "FX")] float cardStaggerDelay = 0.04f; // trễ hiện lần lượt từng thẻ
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
         readonly List<DailyRewardCard> cards = new List<DailyRewardCard>();
-        DailyRewardManager manager;
-        RewardHooks hooks;
-        bool started;
+        readonly AdFlow adFlow = new AdFlow();
+        TimeScheduler.Handle rolloverHandle;
+        bool built;
+        bool iapBusy;
 
-        public void StartClass(DailyRewardManager dailyRewardManager, RewardHooks rewardHooks)
+        [ShowInInspector] public DailyRewardProfile Profile { get; private set; }
+
+        #region API
+
+        // one-time init with the host's data; call from Start() at boot, the panel stays hidden until OpenPanel()
+        public void SetInfo(List<DailyRewardRow> hostRows)
         {
-            manager = dailyRewardManager;
-            hooks = rewardHooks;
-            if (cardBackgrounds.Length != manager.DayCount)
-                throw new System.InvalidOperationException($"DailyRewardPanel: cardBackgrounds has {cardBackgrounds.Length} sprites, expected {manager.DayCount}");
+            if (hostRows == null || hostRows.Count == 0) throw new InvalidOperationException("DailyRewardPanel: rows is null or empty");
+            rows = hostRows;
+            DailyRewardRow.Warn(rows, this);
+            WarnConfig();
 
-            if (!started)
+            Profile = RewardProfileStore.Load<DailyRewardProfile>(SaveKey, ProfileVersion);
+            if (Profile.StreakDay < 0 || Profile.StreakDay > rows.Count)
             {
-                started = true;
-                cardTemplate.gameObject.SetActive(false);
-                for (int i = 0; i < manager.DayCount; i++)
-                {
-                    DailyRewardCard card = Instantiate(cardTemplate, cardsRoot);
-                    card.gameObject.SetActive(true);
-                    card.name = $"Card_{i + 1}";
-                    ((RectTransform)card.transform).anchoredPosition =
-                        new Vector2((i - (manager.DayCount - 1) * 0.5f) * cardSpacing, 0f);
-                    cards.Add(card);
-                }
+                Debug.LogError($"[DailyRewardPanel] saved StreakDay {Profile.StreakDay} is outside 0..{rows.Count}, reset to 0", this);
+                Profile.StreakDay = 0;
+                RewardProfileStore.Save(SaveKey, Profile);
             }
 
-            closeButton.onClick.RemoveListener(ClosePanel);
-            closeButton.onClick.AddListener(ClosePanel);
-            openAllButton.onClick.RemoveListener(OnOpenAll);
-            openAllButton.onClick.AddListener(OnOpenAll);
-
-            EventManager.Instance.RemoveListener<DailyRewardChangedEvent>(OnDailyRewardChanged);
-            EventManager.Instance.AddListener<DailyRewardChangedEvent>(OnDailyRewardChanged);
-
-            for (int i = 0; i < cards.Count; i++) cards[i].StartClass(i, manager.GetRow(i), manager.GetItem(i), cardBackgrounds[i], OnCardClicked);
+            ResetWeekIfElapsed();
+            ScheduleRollover();
+            BuildCards();
+            BindUi();
+            for (int i = 0; i < cards.Count && i < rows.Count; i++) cards[i].SetInfo(i, rows[i], CardBackground(i), OnCardClicked);
             RefreshAll();
-        }
-
-        void OnDestroy()
-        {
-            if (EventManager.Instance == null) return;
-            EventManager.Instance.RemoveListener<DailyRewardChangedEvent>(OnDailyRewardChanged);
         }
 
         public void OpenPanel()
         {
+            if (Profile == null)
+            {
+                Debug.LogError("[DailyRewardPanel] OpenPanel before SetInfo(rows); call SetInfo from your boot first", this);
+                return;
+            }
+
             Show();
             RefreshAll();
             for (int i = 0; i < cards.Count; i++) cards[i].PlayIntro(i * cardStaggerDelay);
@@ -75,34 +92,232 @@ namespace NabaGame.Reward
 
         public void ClosePanel()
         {
-            if (buttonSfx) hooks.PlaySfx(buttonSfx);
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             Hide();
+            EventManager.Instance.Raise(new DailyRewardPanelClosedEvent());
+        }
+
+        public int DayCount => rows.Count;
+
+        public int StreakDay => Profile == null ? 0 : Profile.StreakDay;
+
+        // red-dot query: 1 while today's card is still unclaimed
+        public int ClaimableCount => Profile != null && Profile.StreakDay < DayCount && Profile.LastClaimDateUtc != TodayUtc ? 1 : 0;
+
+        public int UnopenedCount => DayCount - StreakDay;
+
+        public void ResetProfile()
+        {
+            RewardProfileStore.Clear(SaveKey);
+            Profile = RewardProfileStore.Load<DailyRewardProfile>(SaveKey, ProfileVersion);
+            RaiseChanged();
+        }
+
+        #endregion
+
+        #region Logic
+
+        static string TodayUtc => DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+        bool OpenAllIapEnabled => !string.IsNullOrEmpty(openAllIapProductId);
+
+        DailyState GetState(int day)
+        {
+            if (day < Profile.StreakDay) return DailyState.Claimed;
+            if (day == Profile.StreakDay && ClaimableCount > 0) return DailyState.Claimable;
+            return DailyState.Locked;
+        }
+
+        void WarnConfig()
+        {
+            if (openAllAdsRequired < 0) Debug.LogWarning($"[DailyRewardPanel] openAllAdsRequired is {openAllAdsRequired}, OPEN ALL by ads stays off", this);
+            if (OpenAllIapEnabled && string.IsNullOrEmpty(openAllIapPriceText)) Debug.LogWarning("[DailyRewardPanel] openAllIapProductId is set but openAllIapPriceText is empty", this);
+        }
+
+        void ScheduleRollover()
+        {
+            TimeScheduler.Cancel(ref rolloverHandle);
+            long nextMidnight = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(1), TimeSpan.Zero).ToUnixTimeMilliseconds();
+            rolloverHandle = TimeScheduler.Schedule(nextMidnight, OnRollover);
+        }
+
+        void OnRollover()
+        {
+            rolloverHandle = null;
+            ResetWeekIfElapsed();
+            ScheduleRollover();
+            RaiseChanged();
+        }
+
+        void ResetWeekIfElapsed()
+        {
+            if (Profile.StreakDay != DayCount || Profile.LastClaimDateUtc == TodayUtc) return;
+            Profile.StreakDay = 0;
+            RewardProfileStore.Save(SaveKey, Profile);
+        }
+
+        void ClaimDay(int day, bool withSfx)
+        {
+            DailyRewardRow row = rows[day];
+            Profile.StreakDay = day + 1;
+            Profile.LastClaimDateUtc = TodayUtc;
+            RewardProfileStore.Save(SaveKey, Profile);
+
+            if (withSfx && row.ClaimSfx) RewardHooks.PlaySfx(row.ClaimSfx);
+
+            // the audit log is mandatory: a null OnClaimed grants nothing and only this line betrays it
+            Debug.Log($"[DailyRewardPanel] claimed day {day + 1}: {row.Key} x{row.Amount}");
+            if (row.OnClaimed != null) row.OnClaimed(row);
+            else Debug.LogError($"[DailyRewardPanel] rows[{day}].OnClaimed is null, '{row.Key}' x{row.Amount} was NOT granted", this);
+
+            if (IsVisible() && day < cards.Count) cards[day].PlayClaimedPunch();
+        }
+
+        void TryClaim()
+        {
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            int day = Profile.StreakDay;
+            if (GetState(day) != DailyState.Claimable) return;
+            ClaimDay(day, withSfx: true);
+            RaiseChanged();
+        }
+
+        bool RequestOpenAllAds()
+        {
+            if (openAllAdsRequired <= 0 || UnopenedCount == 0) return false;
+            return adFlow.Show(OpenAllPlacement, OnOpenAllAdWatched);
+        }
+
+        void OnOpenAllAdWatched()
+        {
+            if (Profile.OpenAllAdsWatched + 1 < openAllAdsRequired)
+            {
+                Profile.OpenAllAdsWatched++;
+                RewardProfileStore.Save(SaveKey, Profile);
+                RaiseChanged();
+                return;
+            }
+
+            OpenAll();
+        }
+
+        bool RequestOpenAllIap()
+        {
+            if (!OpenAllIapEnabled || UnopenedCount == 0 || iapBusy) return false;
+            iapBusy = true;
+            RewardHooks.PurchaseIap(openAllIapProductId, OnOpenAllPurchase);
+            return true;
+        }
+
+        void OnOpenAllPurchase(bool success)
+        {
+            iapBusy = false;
+            if (!success)
+            {
+                Debug.Log($"[DailyRewardPanel] open-all purchase failed or cancelled: {openAllIapProductId}");
+                return;
+            }
+
+            OpenAll();
+        }
+
+        void OpenAll()
+        {
+            int firstDay = Profile.StreakDay;
+            if (firstDay >= rows.Count) return;
+
+            if (rows[firstDay].ClaimSfx) RewardHooks.PlaySfx(rows[firstDay].ClaimSfx);
+            Profile.OpenAllAdsWatched = 0;
+            for (int day = firstDay; day < rows.Count; day++) ClaimDay(day, withSfx: false);
+            RaiseChanged();
+        }
+
+        void RaiseChanged()
+        {
+            if (IsVisible()) RefreshAll();
+            EventManager.Instance.Raise(new DailyRewardChangedEvent());
+        }
+
+        void OnDestroy()
+        {
+            TimeScheduler.Cancel(ref rolloverHandle);
+        }
+
+        #endregion
+
+        #region UI
+
+        void BuildCards()
+        {
+            if (built) return;
+            built = true;
+
+            if (!cardTemplate)
+            {
+                Debug.LogError("[DailyRewardPanel] cardTemplate is not assigned, no cards will be shown", this);
+                return;
+            }
+
+            if (cardBackgrounds != null && cardBackgrounds.Length > 0 && cardBackgrounds.Length != rows.Count)
+                Debug.LogWarning($"[DailyRewardPanel] cardBackgrounds has {cardBackgrounds.Length} sprites for {rows.Count} rows, reusing by wrap-around", this);
+
+            cardTemplate.gameObject.SetActive(false);
+            Transform parent = cardsRoot ? cardsRoot : cardTemplate.transform.parent;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                DailyRewardCard card = Instantiate(cardTemplate, parent);
+                card.gameObject.SetActive(true);
+                card.name = $"Card_{i + 1}";
+                ((RectTransform)card.transform).anchoredPosition =
+                    new Vector2((i - (rows.Count - 1) * 0.5f) * cardSpacing, 0f);
+                cards.Add(card);
+            }
+        }
+
+        Sprite CardBackground(int index) =>
+            cardBackgrounds == null || cardBackgrounds.Length == 0 ? null : cardBackgrounds[index % cardBackgrounds.Length];
+
+        void BindUi()
+        {
+            RewardUi.Bind(closeButton, ClosePanel);
+            RewardUi.Bind(openAllAdsButton, OnOpenAllAds);
+            RewardUi.Bind(openAllIapButton, OnOpenAllIap);
         }
 
         void RefreshAll()
         {
-            for (int i = 0; i < cards.Count; i++) cards[i].Refresh(manager.GetState(i));
-            bool claimable = manager.ClaimableCount > 0;
-            openAllButton.interactable = claimable;
-            openAllButton.image.color = claimable ? Color.white : openAllDisabledTint;
-            openAllLabel.text = claimable ? "OPEN ALL" : "COME BACK TOMORROW";
+            if (Profile == null) return;
+            for (int i = 0; i < cards.Count && i < rows.Count; i++) cards[i].Refresh(GetState(i));
+
+            bool iapOn = OpenAllIapEnabled && UnopenedCount > 0;
+            bool adsOn = !iapOn && openAllAdsRequired > 0 && UnopenedCount > 0;
+
+            if (openAllAdsButton) openAllAdsButton.gameObject.SetActive(adsOn);
+            if (adsOn && openAllAdsCountLabel) openAllAdsCountLabel.text = $"{Profile.OpenAllAdsWatched}/{openAllAdsRequired}";
+
+            if (openAllIapButton) openAllIapButton.gameObject.SetActive(iapOn);
+            if (iapOn && openAllIapPriceLabel) openAllIapPriceLabel.text = openAllIapPriceText;
+
+            if (comeBackLabel) comeBackLabel.SetActive(UnopenedCount == 0);
         }
 
         void OnCardClicked(int day) => TryClaim();
 
-        void OnOpenAll() => TryClaim();
-
-        void TryClaim()
+        void OnOpenAllAds()
         {
-            int day = manager.StreakDay;
-            if (buttonSfx) hooks.PlaySfx(buttonSfx);
-            if (manager.Claim()) cards[day].PlayClaimedPunch();
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            RequestOpenAllAds();
         }
 
-        void OnDailyRewardChanged(DailyRewardChangedEvent e)
+        void OnOpenAllIap()
         {
-            if (IsVisible()) RefreshAll();
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            RequestOpenAllIap();
         }
+
+        #endregion
+
+        #region Debug
 
         [Button, DisableInEditorMode]
         void PreviewOpen() => OpenPanel();
@@ -114,14 +329,36 @@ namespace NabaGame.Reward
         void PreviewClaimToday() => TryClaim();
 
         [Button, DisableInEditorMode]
-        void PreviewSetStreakDay(int day) => manager.SetStreakDay(day);
+        void PreviewSetStreakDay(int day)
+        {
+            Profile.StreakDay = Mathf.Clamp(day, 0, DayCount);
+            Profile.LastClaimDateUtc = "";
+            RewardProfileStore.Save(SaveKey, Profile);
+            RaiseChanged();
+        }
+
+        [Button, DisableInEditorMode]
+        void PreviewExpireToday()
+        {
+            Profile.LastClaimDateUtc = "";
+            RewardProfileStore.Save(SaveKey, Profile);
+            RaiseChanged();
+        }
+
+        [Button, DisableInEditorMode]
+        void PreviewOpenAllAds() => RequestOpenAllAds();
+
+        [Button, DisableInEditorMode]
+        void PreviewOpenAllIap() => RequestOpenAllIap();
 
         [Button, DisableInEditorMode]
         void PreviewResetAndReopen()
         {
-            manager.ResetProfile();
+            ResetProfile();
             Hide();
             OpenPanel();
         }
+
+        #endregion
     }
 }

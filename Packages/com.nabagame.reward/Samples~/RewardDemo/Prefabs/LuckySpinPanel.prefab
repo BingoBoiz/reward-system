@@ -356,7 +356,7 @@ MonoBehaviour:
   disableWhenHidden: 0
   dontDisableCanvasWhenHidden: 0
   disableGraphicRaycaster: 0
-  useCustomStartAnchoredPosition: 0
+  useCustomStartAnchoredPosition: 1
   customStartAnchoredPosition: {x: 0, y: 0, z: 0}
   executeLayoutFix: 0
   autoRegister: 1
@@ -549,6 +549,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uiPanel: {fileID: 4706029848088862689}
+  freeSpinCooldownSeconds: 1800
+  spinDurationSeconds: 4.5
+  spinFullTurns: 5
+  spinStartSfx: {fileID: 0}
+  landSfx: {fileID: 0}
   closeButton: {fileID: 488289034198619397}
   spinButton: {fileID: 7760652124744355174}
   spinLabel: {fileID: 9087665878462019546}

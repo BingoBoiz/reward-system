@@ -14,133 +14,286 @@ namespace NabaGame.Reward
 {
     public class LuckySpinPanel : BaseUI
     {
-        [SerializeField] Button closeButton;
-        [SerializeField] Button spinButton;
-        [SerializeField] TMP_Text spinLabel;
-        [SerializeField] GameObject spinBadge;
-        [SerializeField] GameObject videoIcon;
-        [SerializeField] TMP_Text cooldownLabel;
-        [SerializeField] RectTransform wheel;
-        [SerializeField] RectTransform pointer;
-        [SerializeField] RectTransform wedgesRoot;
-        [SerializeField] LuckySpinWedge wedgeTemplate;
-        [SerializeField] int wheelSegmentCount = 8;
-        [SerializeField] float wedgeRadius = 205f;
-        [SerializeField] float windUpSeconds = 0.45f;
-        [SerializeField] float windUpDegrees = 22f;
-        [SerializeField] float spinLabelShiftWithVideo = 22f;
-        [SerializeField] Color spinDisabledTint = new Color(0.68f, 0.68f, 0.68f, 1f);
-        [SerializeField] AudioClip buttonSfx;
-        [SerializeField] AudioClip tickSfx;
+        public const string SaveKey = "NabaReward.Spin";
+        public const int ProfileVersion = 1;
+        public const string AdPlacement = "LuckySpin_AdSpin";
+
+        [ShowInInspector, ReadOnly, TableList, PropertyOrder(-1)]
+        List<LuckySpinRow> rows = new List<LuckySpinRow>(); // dữ liệu do manager truyền vào
+
+        [SerializeField, Min(1), TabGroup("Tabs", "Config")] int freeSpinCooldownSeconds = 1800; // giây chờ giữa hai lượt free
+        [SerializeField, Min(1f), TabGroup("Tabs", "Config")] float spinDurationSeconds = 4.5f; // thời gian quay một lượt
+        [SerializeField, Min(1), TabGroup("Tabs", "Config")] int spinFullTurns = 5; // số vòng quay trọn vẹn
+        [SerializeField, TabGroup("Tabs", "Config")] int wheelSegmentCount = 8; // số múi trên ảnh vòng quay
+
+        [SerializeField, TabGroup("Tabs", "UI")] Button closeButton; // nút đóng panel
+        [SerializeField, TabGroup("Tabs", "UI")] TMP_Text cooldownLabel; // chữ đếm ngược lượt free
+        [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] Button spinButton; // nút bấm quay
+        [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] TMP_Text spinLabel; // chữ trên nút quay
+        [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] GameObject spinBadge; // chấm đỏ báo free spin
+        [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] GameObject videoIcon; // icon ads khi hết free
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform wheel; // hình vòng quay sẽ xoay
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform pointer; // kim chỉ phần thưởng
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform wedgesRoot; // chỗ chứa các múi thưởng
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] LuckySpinWedge wedgeTemplate; // múi mẫu để nhân bản
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] float wedgeRadius = 205f; // bán kính đặt múi thưởng
+
+        [SerializeField, TabGroup("Tabs", "FX")] float windUpSeconds = 0.45f; // giây kéo ngược lấy đà
+        [SerializeField, TabGroup("Tabs", "FX")] float windUpDegrees = 22f; // độ kéo ngược lấy đà
+        [SerializeField, TabGroup("Tabs", "FX")] float spinLabelShiftWithVideo = 22f; // dịch chữ khi icon hiện
+        [SerializeField, TabGroup("Tabs", "FX")] Color spinDisabledTint = new Color(0.68f, 0.68f, 0.68f, 1f); // màu nút khi khoá quay
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip spinStartSfx; // tiếng lúc bắt đầu quay
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip tickSfx; // tiếng tách khi qua múi
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip landSfx; // tiếng lúc kim dừng lại
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
         readonly List<LuckySpinWedge> wedges = new List<LuckySpinWedge>();
-        LuckySpinManager manager;
-        RewardHooks hooks;
-        bool started;
+        readonly AdFlow adFlow = new AdFlow();
+        TimeScheduler.Handle cooldownHandle;
+        bool built;
         Sequence spinSequence;
         Tween pointerTween;
         CancellationTokenSource countdownCts;
         Vector2 spinLabelRestPosition;
         int lastTickWedge = -1;
 
-        float WedgeStep => 360f / wedges.Count;
+        public LuckySpinProfile Profile { get; private set; }
 
-        public void StartClass(LuckySpinManager luckySpinManager, RewardHooks rewardHooks)
+        float WedgeStep => wedges.Count == 0 ? 360f : 360f / wedges.Count;
+
+        #region API
+
+        // one-time init with the host's data; call from Start() at boot, the panel stays hidden until OpenPanel()
+        public void SetInfo(List<LuckySpinRow> hostRows)
         {
-            manager = luckySpinManager;
-            hooks = rewardHooks;
+            if (hostRows == null || hostRows.Count < 2) throw new InvalidOperationException("LuckySpinPanel: rows needs at least 2 wedges");
+            rows = hostRows;
+            LuckySpinRow.Warn(rows, this);
 
-            if (!started)
-            {
-                started = true;
-                spinLabelRestPosition = spinLabel.rectTransform.anchoredPosition;
-                wedgeTemplate.gameObject.SetActive(false);
-                if (manager.WedgeCount != wheelSegmentCount)
-                    Debug.LogError($"[LuckySpinPanel] config has {manager.WedgeCount} wedges but the wheel art has {wheelSegmentCount} segments", this);
-
-                for (int i = 0; i < manager.WedgeCount; i++)
-                {
-                    LuckySpinWedge wedge = Instantiate(wedgeTemplate, wedgesRoot);
-                    wedge.gameObject.SetActive(true);
-                    wedge.name = $"Wedge_{i}";
-                    float angle = (i + 0.5f) * (360f / manager.WedgeCount) * Mathf.Deg2Rad;
-                    ((RectTransform)wedge.transform).anchoredPosition = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle)) * wedgeRadius;
-                    wedges.Add(wedge);
-                }
-            }
-
-            closeButton.onClick.RemoveListener(ClosePanel);
-            closeButton.onClick.AddListener(ClosePanel);
-            spinButton.onClick.RemoveListener(OnSpinClicked);
-            spinButton.onClick.AddListener(OnSpinClicked);
-
-            EventManager.Instance.RemoveListener<LuckySpinChangedEvent>(OnLuckySpinChanged);
-            EventManager.Instance.AddListener<LuckySpinChangedEvent>(OnLuckySpinChanged);
-            EventManager.Instance.RemoveListener<SpinStartedEvent>(OnSpinStarted);
-            EventManager.Instance.AddListener<SpinStartedEvent>(OnSpinStarted);
-            EventManager.Instance.RemoveListener<SpinResultEvent>(OnSpinResult);
-            EventManager.Instance.AddListener<SpinResultEvent>(OnSpinResult);
-
-            for (int i = 0; i < wedges.Count; i++) wedges[i].StartClass(i, manager.GetRow(i), manager.GetItem(i));
+            Profile = RewardProfileStore.Load<LuckySpinProfile>(SaveKey, ProfileVersion);
+            ScheduleCooldownEnd();
+            BuildWedges();
+            BindUi();
+            for (int i = 0; i < wedges.Count && i < rows.Count; i++) wedges[i].SetInfo(i, rows[i]);
             RefreshAll();
-        }
-
-        void OnDestroy()
-        {
-            KillTweens();
-            StopCountdown();
-            if (EventManager.Instance == null) return;
-            EventManager.Instance.RemoveListener<LuckySpinChangedEvent>(OnLuckySpinChanged);
-            EventManager.Instance.RemoveListener<SpinStartedEvent>(OnSpinStarted);
-            EventManager.Instance.RemoveListener<SpinResultEvent>(OnSpinResult);
         }
 
         public void OpenPanel()
         {
+            if (Profile == null)
+            {
+                Debug.LogError("[LuckySpinPanel] OpenPanel before SetInfo(rows); call SetInfo from your boot first", this);
+                return;
+            }
+
             Show();
             RefreshAll();
-            StopCountdown();
-            countdownCts = new CancellationTokenSource();
-            RunCountdown(countdownCts.Token).Forget();
+            StartCountdown();
         }
 
         public void ClosePanel()
         {
-            if (manager.IsSpinning) return;
-            if (buttonSfx) hooks.PlaySfx(buttonSfx);
+            if (IsSpinning) return;
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             StopCountdown();
             Hide();
+            EventManager.Instance.Raise(new LuckySpinPanelClosedEvent());
+        }
+
+        // red-dot query
+        public bool FreeSpinReady => Profile != null && Profile.NextFreeSpinAtMs <= TimeScheduler.NowMs;
+
+        public double SecondsUntilFreeSpin => Profile == null ? 0 : TimeScheduler.SecondsUntil(Profile.NextFreeSpinAtMs);
+
+        public bool IsSpinning { get; private set; }
+
+        public bool CanSpinByAd => !IsSpinning && !adFlow.Busy;
+
+        public void ResetProfile()
+        {
+            RewardProfileStore.Clear(SaveKey);
+            Profile = RewardProfileStore.Load<LuckySpinProfile>(SaveKey, ProfileVersion);
+            ScheduleCooldownEnd();
+            RaiseChanged();
+        }
+
+        #endregion
+
+        #region Logic
+
+        bool SpinFree()
+        {
+            if (IsSpinning || !FreeSpinReady) return false;
+
+            Profile.NextFreeSpinAtMs = TimeScheduler.NowMs + freeSpinCooldownSeconds * 1000L;
+            RewardProfileStore.Save(SaveKey, Profile);
+            ScheduleCooldownEnd();
+            BeginSpin(Roll());
+            return true;
+        }
+
+        bool SpinByAd()
+        {
+            if (!CanSpinByAd) return false;
+            adFlow.Show(AdPlacement, () => BeginSpin(Roll()));
+            RaiseChanged();
+            return true;
+        }
+
+        int Roll()
+        {
+            int total = 0;
+            for (int i = 0; i < rows.Count; i++) total += Mathf.Max(0, rows[i].Weight);
+            // every weight invalid: uniform pick, the Warn at SetInfo already named the rows
+            if (total <= 0) return UnityEngine.Random.Range(0, rows.Count);
+
+            int pick = UnityEngine.Random.Range(0, total);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                pick -= Mathf.Max(0, rows[i].Weight);
+                if (pick < 0) return i;
+            }
+
+            return rows.Count - 1;
+        }
+
+        // the wedge is decided here; the animation only lands on it. the reward waits for the wheel to stop
+        void BeginSpin(int wedgeIndex)
+        {
+            IsSpinning = true;
+            if (spinStartSfx) RewardHooks.PlaySfx(spinStartSfx);
+
+            EventManager.Instance.Raise(new SpinStartedEvent { WedgeIndex = wedgeIndex, DurationSeconds = spinDurationSeconds });
+            if (IsVisible()) PlaySpinTween(wedgeIndex, spinDurationSeconds);
+            RaiseChanged();
+            FinishSpin(wedgeIndex).Forget();
+        }
+
+        async UniTaskVoid FinishSpin(int wedgeIndex)
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(spinDurationSeconds), DelayType.UnscaledDeltaTime, cancellationToken: this.GetCancellationTokenOnDestroy());
+
+            LuckySpinRow row = rows[wedgeIndex];
+            if (landSfx) RewardHooks.PlaySfx(landSfx);
+            if (row.ClaimSfx) RewardHooks.PlaySfx(row.ClaimSfx);
+            IsSpinning = false;
+
+            // the audit log is mandatory: a null OnClaimed grants nothing and only this line betrays it
+            Debug.Log($"[LuckySpinPanel] spun wedge {wedgeIndex + 1}: {row.Key} x{row.Amount}");
+            if (row.OnClaimed != null) row.OnClaimed(row);
+            else Debug.LogError($"[LuckySpinPanel] rows[{wedgeIndex}].OnClaimed is null, '{row.Key}' x{row.Amount} was NOT granted", this);
+
+            if (IsVisible() && wedgeIndex < wedges.Count) wedges[wedgeIndex].PlayWinPunch();
+            RaiseChanged();
+        }
+
+        void ScheduleCooldownEnd()
+        {
+            TimeScheduler.Cancel(ref cooldownHandle);
+            if (FreeSpinReady) return;
+            cooldownHandle = TimeScheduler.Schedule(Profile.NextFreeSpinAtMs, OnCooldownEnd);
+        }
+
+        void OnCooldownEnd()
+        {
+            cooldownHandle = null;
+            RaiseChanged();
+        }
+
+        void RaiseChanged()
+        {
+            if (IsVisible()) RefreshAll();
+            EventManager.Instance.Raise(new LuckySpinChangedEvent());
+        }
+
+        void OnDestroy()
+        {
+            TimeScheduler.Cancel(ref cooldownHandle);
+            KillTweens();
+            StopCountdown();
+        }
+
+        #endregion
+
+        #region UI
+
+        void BuildWedges()
+        {
+            if (built) return;
+            built = true;
+
+            if (!wedgeTemplate)
+            {
+                Debug.LogError("[LuckySpinPanel] wedgeTemplate is not assigned, no wedges will be shown", this);
+                return;
+            }
+
+            if (spinLabel) spinLabelRestPosition = spinLabel.rectTransform.anchoredPosition;
+            if (rows.Count != wheelSegmentCount)
+                Debug.LogWarning($"[LuckySpinPanel] rows has {rows.Count} wedges but the wheel art has {wheelSegmentCount} segments", this);
+
+            wedgeTemplate.gameObject.SetActive(false);
+            Transform parent = wedgesRoot ? wedgesRoot : wedgeTemplate.transform.parent;
+            for (int i = 0; i < rows.Count; i++)
+            {
+                LuckySpinWedge wedge = Instantiate(wedgeTemplate, parent);
+                wedge.gameObject.SetActive(true);
+                wedge.name = $"Wedge_{i}";
+                float angle = (i + 0.5f) * (360f / rows.Count) * Mathf.Deg2Rad;
+                ((RectTransform)wedge.transform).anchoredPosition = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle)) * wedgeRadius;
+                wedges.Add(wedge);
+            }
+        }
+
+        void BindUi()
+        {
+            RewardUi.Bind(closeButton, ClosePanel);
+            RewardUi.Bind(spinButton, OnSpinClicked);
         }
 
         void RefreshAll()
         {
-            bool spinning = manager.IsSpinning;
-            bool free = manager.FreeSpinReady;
-            bool canSpin = !spinning && (free || manager.CanSpinByAd);
+            if (Profile == null) return;
+            bool spinning = IsSpinning;
+            bool free = FreeSpinReady;
+            bool canSpin = !spinning && (free || CanSpinByAd);
 
-            closeButton.interactable = !spinning;
-            spinButton.interactable = canSpin;
-            spinButton.image.color = canSpin ? Color.white : spinDisabledTint;
-            spinBadge.SetActive(free && !spinning);
-            videoIcon.SetActive(!free);
-            spinLabel.rectTransform.anchoredPosition = free ? spinLabelRestPosition : spinLabelRestPosition + Vector2.right * spinLabelShiftWithVideo;
-            cooldownLabel.gameObject.SetActive(!free);
+            if (closeButton) closeButton.interactable = !spinning;
+            if (spinButton)
+            {
+                spinButton.interactable = canSpin;
+                if (spinButton.image) spinButton.image.color = canSpin ? Color.white : spinDisabledTint;
+            }
+
+            if (spinBadge) spinBadge.SetActive(free && !spinning);
+            if (videoIcon) videoIcon.SetActive(!free);
+            if (spinLabel) spinLabel.rectTransform.anchoredPosition = free ? spinLabelRestPosition : spinLabelRestPosition + Vector2.right * spinLabelShiftWithVideo;
+            if (cooldownLabel) cooldownLabel.gameObject.SetActive(!free);
             RefreshCooldownLabel();
         }
 
         void RefreshCooldownLabel()
         {
-            TimeSpan left = TimeSpan.FromSeconds(Math.Ceiling(manager.SecondsUntilFreeSpin));
+            if (!cooldownLabel) return;
+            TimeSpan left = TimeSpan.FromSeconds(Math.Ceiling(SecondsUntilFreeSpin));
             string clock = left.Hours > 0 ? $"{(int)left.TotalHours}:{left.Minutes:00}:{left.Seconds:00}" : $"{left.Minutes:00}:{left.Seconds:00}";
             cooldownLabel.text = "Free spin in " + clock;
         }
 
+        void StartCountdown()
+        {
+            StopCountdown();
+            countdownCts = new CancellationTokenSource();
+            RunCountdown(countdownCts.Token).Forget();
+        }
+
         async UniTaskVoid RunCountdown(CancellationToken token)
         {
-            while (true)
+            // Hide() can arrive from outside ClosePanel, so visibility is the loop condition
+            while (IsVisible())
             {
                 await UniTask.Delay(1000, true, cancellationToken: token);
-                if (!manager.FreeSpinReady) RefreshCooldownLabel();
+                if (!FreeSpinReady) RefreshCooldownLabel();
             }
         }
 
@@ -153,24 +306,18 @@ namespace NabaGame.Reward
 
         void OnSpinClicked()
         {
-            if (buttonSfx) hooks.PlaySfx(buttonSfx);
-            if (manager.FreeSpinReady) manager.SpinFree();
-            else manager.SpinByAd();
-        }
-
-        void OnSpinStarted(SpinStartedEvent e)
-        {
-            RefreshAll();
-            if (!IsVisible()) return;
-            PlaySpinTween(e.WedgeIndex, e.DurationSeconds);
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            if (FreeSpinReady) SpinFree();
+            else SpinByAd();
         }
 
         void PlaySpinTween(int wedgeIndex, float duration)
         {
+            if (!wheel || wedges.Count == 0) return;
             KillTweens();
             float current = Mathf.Repeat(wheel.localEulerAngles.z, 360f);
             float target = (wedgeIndex + 0.5f) * WedgeStep;
-            float final = current + manager.SpinFullTurns * 360f + Mathf.Repeat(target - current, 360f);
+            float final = current + spinFullTurns * 360f + Mathf.Repeat(target - current, 360f);
             lastTickWedge = Mathf.FloorToInt(current / WedgeStep);
 
             spinSequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject)
@@ -182,6 +329,7 @@ namespace NabaGame.Reward
 
         void OnWheelRotated()
         {
+            if (!wheel || wedges.Count == 0) return;
             float z = wheel.localEulerAngles.z;
             for (int i = 0; i < wedges.Count; i++) wedges[i].KeepUpright(z);
 
@@ -190,9 +338,13 @@ namespace NabaGame.Reward
             lastTickWedge = tick;
 
             pointerTween?.Kill();
-            pointer.localRotation = Quaternion.identity;
-            pointerTween = pointer.DOPunchRotation(new Vector3(0f, 0f, -14f), 0.2f, 6, 0.5f).SetUpdate(true).SetLink(gameObject);
-            if (tickSfx) hooks.PlaySfx(tickSfx);
+            if (pointer)
+            {
+                pointer.localRotation = Quaternion.identity;
+                pointerTween = pointer.DOPunchRotation(new Vector3(0f, 0f, -14f), 0.2f, 6, 0.5f).SetUpdate(true).SetLink(gameObject);
+            }
+
+            if (tickSfx) RewardHooks.PlaySfx(tickSfx);
         }
 
         void OnWheelStopped()
@@ -201,25 +353,18 @@ namespace NabaGame.Reward
             OnWheelRotated();
         }
 
-        void OnSpinResult(SpinResultEvent e)
-        {
-            RefreshAll();
-            if (IsVisible()) wedges[e.WedgeIndex].PlayWinPunch();
-        }
-
-        void OnLuckySpinChanged(LuckySpinChangedEvent e)
-        {
-            if (IsVisible()) RefreshAll();
-        }
-
         void KillTweens()
         {
             spinSequence?.Kill();
             spinSequence = null;
             pointerTween?.Kill();
             pointerTween = null;
-            pointer.localRotation = Quaternion.identity;
+            if (pointer) pointer.localRotation = Quaternion.identity;
         }
+
+        #endregion
+
+        #region Debug
 
         [Button, DisableInEditorMode]
         void PreviewOpen() => OpenPanel();
@@ -228,23 +373,45 @@ namespace NabaGame.Reward
         void PreviewClose() => ClosePanel();
 
         [Button, DisableInEditorMode]
-        void PreviewSpinFree() => manager.SpinFree();
+        void PreviewSpinFree() => Debug.Log($"[LuckySpinPanel] SpinFree() -> {SpinFree()}");
 
         [Button, DisableInEditorMode]
-        void PreviewSpinByAd() => manager.SpinByAd();
+        void PreviewSpinByAd() => Debug.Log($"[LuckySpinPanel] SpinByAd() -> {SpinByAd()}");
 
         [Button, DisableInEditorMode]
-        void PreviewForceWedge(int wedgeIndex) => manager.SpinForced(wedgeIndex);
+        void PreviewForceWedge(int wedgeIndex)
+        {
+            if (IsSpinning) return;
+            BeginSpin(Mathf.Clamp(wedgeIndex, 0, rows.Count - 1));
+        }
 
         [Button, DisableInEditorMode]
-        void PreviewSetCooldownSeconds(int seconds) => manager.SetCooldownSeconds(seconds);
+        void PreviewSetCooldownSeconds(int seconds)
+        {
+            Profile.NextFreeSpinAtMs = TimeScheduler.NowMs + seconds * 1000L;
+            RewardProfileStore.Save(SaveKey, Profile);
+            ScheduleCooldownEnd();
+            RaiseChanged();
+        }
 
         [Button, DisableInEditorMode]
         void PreviewResetAndReopen()
         {
-            manager.ResetProfile();
+            ResetProfile();
             Hide();
             OpenPanel();
         }
+
+        [Button, DisableInEditorMode]
+        void PreviewRollDistribution(int rolls = 1000)
+        {
+            int[] hits = new int[rows.Count];
+            for (int i = 0; i < rolls; i++) hits[Roll()]++;
+            var sb = new System.Text.StringBuilder($"[LuckySpinPanel] {rolls} rolls:");
+            for (int i = 0; i < hits.Length; i++) sb.Append($" w{i}({rows[i].Weight})={hits[i]}");
+            Debug.Log(sb.ToString());
+        }
+
+        #endregion
     }
 }

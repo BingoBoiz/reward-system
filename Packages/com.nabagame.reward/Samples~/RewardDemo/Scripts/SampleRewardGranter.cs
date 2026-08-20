@@ -1,18 +1,15 @@
 using NabaGame.Core.Runtime.EventManager;
-using NabaGame.Reward;
 using UnityEngine;
 
 namespace NabaGame.Reward.Sample
 {
-    // stands in for the game's economy: the package hands over a RewardItem.Key,
-    // the host is the only side that knows what "cash" means
-    public class SampleRewardGranter : IRewardGranter
+    // stands in for the game's economy: each row's OnClaimed callback lands here,
+    // and the host is the only side that knows what "cash" means
+    public static class SampleRewardGranter
     {
         public const string CashKey = "Sample.Cash";
         public const string SpinKey = "Sample.Spin";
         public const string NoAdsKey = "Sample.NoAds";
-
-        static readonly SampleCurrencyChangedEvent changedEvent = new SampleCurrencyChangedEvent();
 
         public static long GetAmount(string prefsKey) => long.Parse(PlayerPrefs.GetString(prefsKey, "0"));
 
@@ -24,12 +21,12 @@ namespace NabaGame.Reward.Sample
             PlayerPrefs.DeleteKey(SpinKey);
             PlayerPrefs.DeleteKey(NoAdsKey);
             PlayerPrefs.Save();
-            EventManager.Instance.Raise(changedEvent);
+            EventManager.Instance.Raise(new SampleCurrencyChangedEvent());
         }
 
-        public void Grant(RewardItem item, long amount)
+        public static void Grant(string key, Sprite icon, long amount)
         {
-            switch (item.Key)
+            switch (key)
             {
                 case "cash":
                     Add(CashKey, amount);
@@ -44,12 +41,13 @@ namespace NabaGame.Reward.Sample
                     break;
 
                 default:
-                    Debug.LogError($"[SampleRewardGranter] RewardItem key '{item.Key}' x{amount} has no mapping in the sample host");
+                    Debug.LogError($"[SampleRewardGranter] reward key '{key}' x{amount} has no mapping in the sample host");
                     return;
             }
 
             PlayerPrefs.Save();
-            EventManager.Instance.Raise(changedEvent);
+            EventManager.Instance.Raise(new SampleCurrencyChangedEvent());
+            EventManager.Instance.Raise(new SampleItemGrantedEvent { Key = key, Icon = icon, Amount = amount });
         }
 
         static void Add(string prefsKey, long amount)

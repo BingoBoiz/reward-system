@@ -5,50 +5,54 @@ using UnityEngine.UI;
 
 namespace NabaGame.Reward.Sample
 {
-    // the host-side red-dot recipe: listen to package events, drive your own badges
+    // the host-side red-dot recipe: listen to package events, read the panel queries, drive your own badges
     public class SampleHomeButtons : MonoBehaviour
     {
         [SerializeField] Button dailyButton;
         [SerializeField] GameObject dailyBadge;
         [SerializeField] Button spinButton;
         [SerializeField] GameObject spinBadge;
+        [SerializeField] Button playtimeButton;
+        [SerializeField] GameObject playtimeBadge;
 
-        DailyRewardManager dailyRewardManager;
-        LuckySpinManager luckySpinManager;
-
-        public void StartClass(DailyRewardManager daily, LuckySpinManager spin)
+        public void SetInfo()
         {
-            dailyRewardManager = daily;
-            luckySpinManager = spin;
-
             dailyButton.onClick.RemoveListener(OpenDaily);
             dailyButton.onClick.AddListener(OpenDaily);
             spinButton.onClick.RemoveListener(OpenSpin);
             spinButton.onClick.AddListener(OpenSpin);
+            playtimeButton.onClick.RemoveListener(OpenPlaytime);
+            playtimeButton.onClick.AddListener(OpenPlaytime);
 
             EventManager.Instance.RemoveListener<DailyRewardChangedEvent>(OnDailyChanged);
             EventManager.Instance.AddListener<DailyRewardChangedEvent>(OnDailyChanged);
             EventManager.Instance.RemoveListener<LuckySpinChangedEvent>(OnSpinChanged);
             EventManager.Instance.AddListener<LuckySpinChangedEvent>(OnSpinChanged);
+            EventManager.Instance.RemoveListener<OnlineRewardChangedEvent>(OnOnlineChanged);
+            EventManager.Instance.AddListener<OnlineRewardChangedEvent>(OnOnlineChanged);
             Refresh();
         }
 
         void OnDestroy()
         {
-            if (EventManager.Instance == null) return;
             EventManager.Instance.RemoveListener<DailyRewardChangedEvent>(OnDailyChanged);
             EventManager.Instance.RemoveListener<LuckySpinChangedEvent>(OnSpinChanged);
+            EventManager.Instance.RemoveListener<OnlineRewardChangedEvent>(OnOnlineChanged);
         }
 
         void Refresh()
         {
-            dailyBadge.SetActive(dailyRewardManager.ClaimableCount > 0);
-            spinBadge.SetActive(luckySpinManager.FreeSpinReady && !luckySpinManager.IsSpinning);
+            SampleUIRoot ui = SampleUIRoot.Instance;
+            dailyBadge.SetActive(ui.dailyRewardPanel.ClaimableCount > 0);
+            spinBadge.SetActive(ui.luckySpinPanel.FreeSpinReady && !ui.luckySpinPanel.IsSpinning);
+            playtimeBadge.SetActive(ui.onlineRewardPanel.HasClaimable);
         }
 
         void OnDailyChanged(DailyRewardChangedEvent e) => Refresh();
 
         void OnSpinChanged(LuckySpinChangedEvent e) => Refresh();
+
+        void OnOnlineChanged(OnlineRewardChangedEvent e) => Refresh();
 
         void OpenDaily()
         {
@@ -60,6 +64,12 @@ namespace NabaGame.Reward.Sample
         {
             if (SampleUIRoot.Instance.HasPopup()) return;
             SampleUIRoot.Instance.luckySpinPanel.OpenPanel();
+        }
+
+        void OpenPlaytime()
+        {
+            if (SampleUIRoot.Instance.HasPopup()) return;
+            SampleUIRoot.Instance.onlineRewardPanel.OpenPanel();
         }
     }
 }

@@ -33,18 +33,17 @@ namespace NabaGame.Reward
             if (!canvasGroup) canvasGroup = GetComponent<CanvasGroup>();
         }
 
-        public void StartClass(int day, DailyRewardRow row, RewardItem item, Sprite cardBackground, Action<int> clickedCallback)
+        public void SetInfo(int day, DailyRewardRow row, Sprite cardBackground, Action<int> clickedCallback)
         {
             Day = day;
             onClicked = clickedCallback;
             hideIconUntilClaim = row.HideIconUntilClaim;
 
-            if (cardBackground) background.sprite = cardBackground;
-            icon.sprite = item.Icon;
-            amountLabel.text = row.HasLabelOverride ? row.LabelOverride : "+" + RewardAmountFormat.Short(row.Amount);
+            if (background && cardBackground) background.sprite = cardBackground;
+            if (icon) icon.sprite = row.Icon;
+            if (amountLabel) amountLabel.text = row.HasLabelOverride ? row.LabelOverride : "+" + RewardAmountFormat.Short(row.Amount);
 
-            button.onClick.RemoveListener(HandleClicked);
-            button.onClick.AddListener(HandleClicked);
+            RewardUi.Bind(button, HandleClicked);
         }
 
         public void Refresh(DailyState newState)
@@ -53,12 +52,12 @@ namespace NabaGame.Reward
             bool claimed = state == DailyState.Claimed;
             bool claimable = state == DailyState.Claimable;
 
-            claimedTick.SetActive(claimed);
-            claimLabel.gameObject.SetActive(!claimed);
-            badge.SetActive(claimable);
-            icon.gameObject.SetActive(icon.sprite && (claimed || !hideIconUntilClaim));
-            button.interactable = claimable;
-            canvasGroup.alpha = state == DailyState.Locked ? lockedAlpha : 1f;
+            if (claimedTick) claimedTick.SetActive(claimed);
+            if (claimLabel) claimLabel.gameObject.SetActive(!claimed);
+            if (badge) badge.SetActive(claimable);
+            if (icon) icon.gameObject.SetActive(icon.sprite && (claimed || !hideIconUntilClaim));
+            if (button) button.interactable = claimable;
+            if (canvasGroup) canvasGroup.alpha = state == DailyState.Locked ? lockedAlpha : 1f;
 
             if (introTween != null && introTween.IsActive()) return;
             ApplyPulse();
@@ -106,6 +105,9 @@ namespace NabaGame.Reward
             transform.localScale = Vector3.one;
         }
 
-        void HandleClicked() => onClicked(Day);
+        void HandleClicked()
+        {
+            if (onClicked != null) onClicked(Day);
+        }
     }
 }

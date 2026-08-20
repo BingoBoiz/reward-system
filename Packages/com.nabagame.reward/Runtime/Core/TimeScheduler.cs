@@ -53,8 +53,20 @@ namespace NabaGame.Reward
                     pending.RemoveAt(i);
                 }
 
-                // callbacks run after the sweep so they can Schedule/Cancel freely
-                for (int i = 0; i < due.Count; i++) due[i].callback();
+                // callbacks run after the sweep so they can Schedule/Cancel freely.
+                // a throwing callback must not kill the shared loop for every other timer
+                for (int i = 0; i < due.Count; i++)
+                {
+                    try
+                    {
+                        due[i].callback();
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogException(e);
+                    }
+                }
+
                 due.Clear();
             }
 

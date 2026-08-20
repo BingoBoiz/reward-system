@@ -7,5 +7,6 @@ namespace NabaGame.Reward
     {
         public int StreakDay;
         public string LastClaimDateUtc = "";
+        public int OpenAllAdsWatched;
     }
 }

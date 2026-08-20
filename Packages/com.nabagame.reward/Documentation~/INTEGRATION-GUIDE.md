@@ -1,6 +1,8 @@
 # Integration Guide
 
-How to install `com.nabagame.reward` into a NabaGame host project, from zero to a working feature. The demo host in this repo (`Assets/_GameBase/`) is the living reference for every step.
+How to install `com.nabagame.reward` into a NabaGame host project, from zero to a working feature. The demo host in this repo (`Assets/_RewardDemo/`, a symlink view of `Samples~/RewardDemo/`) is the living reference for every step.
+
+The whole contract in one paragraph: **drag one panel prefab, write one tiny manager, assign three static hooks at boot.** The panel owns everything (save, timers, ads, IAP, rules); your manager owns the data (`rows`) and the grant reaction (`OnClaimed`). Read a panel's `#region API` — that is the entire surface you need.
 
 ## 1. Prerequisites
 
@@ -12,102 +14,134 @@ Install these first — git package dependencies are **not** auto-resolved by Un
 - Odin Inspector vendored under `Assets/Plugins/Sirenix/`
 - DOTween vendored under `Assets/Plugins/Demigiant/`
 
-Unity 2022.3+. No ads SDK is required by the package itself; the sample ads adapter targets `com.bmh.ads` if the host uses it.
+Unity 2022.3+. No ads SDK is required by the package itself; the adapters below are one line each onto whatever the host uses.
 
 ## 2. Add the package
 
 - Development repo: already embedded under `Packages/com.nabagame.reward/`.
 - Other hosts: Package Manager → *Add package from git URL*, or copy the package folder into `Packages/`. Confirm "NabaGame Reward" appears in Package Manager.
+- **Upgrading from ≤0.7.0: delete any old imported sample first** (`Assets/Samples/NabaGame Reward/<old version>/`) — six sample types were renamed with the `Sample` prefix and the stale copies are duplicate-definition compile errors.
 
-## 3. Import the Integration sample
+## 3. Import the Reward Demo sample
 
-Package Manager → NabaGame Reward → Samples → **Integration** → Import. This lands adapters, a demo scene, and sample data under `Assets/Samples/NabaGame Reward/...`. Use the adapters as starting points — they are plain game-side code you own after import.
+Package Manager → NabaGame Reward → Samples → **Reward Demo** → Import. One scene (`RewardSample.unity`), the `Sample*` scripts, prefabs, and filled sample data land under `Assets/Samples/NabaGame Reward/...`. Everything prefixed `Sample` is plain game-side code you own after import — copy and adapt it.
 
-## 4. Implement `IRewardGranter`
+## 4. Write your manager and fill the rows
 
-One class in your game maps package reward keys to your economy:
+The package owns no data and ships no manager. Your manager is ~15 lines — the sample's `SampleDailyRewardManager` is the template:
 
 ```csharp
-public sealed class GameRewardGranter : IRewardGranter
+public class SampleDailyRewardManager : MonoBehaviour
 {
-    public void Grant(RewardItem item, long amount)
+    [TableList] public List<DailyRewardRow> rows = new List<DailyRewardRow>();
+
+    public void SetInfo()
     {
-        switch (item.Key)
-        {
-            case "cash":   CommonManager.Instance.PlayerProfile.ChangeGold(amount);  break;
-            case "gem":    CommonManager.Instance.PlayerProfile.ChangeGem(amount);   break;
-            // ... every key used by your data assets
-            default: throw new InvalidOperationException($"Unknown RewardItem key '{item.Key}'");
-        }
-        // then: save, raise your game's ItemGrantedEvent / ceremony popup, tracking
+        foreach (DailyRewardRow row in rows) row.OnClaimed = OnClaimed;
+        SampleUIRoot.Instance.dailyRewardPanel.SetInfo(rows);
     }
+
+    void OnClaimed(DailyRewardRow row) => SampleRewardGranter.Grant(row.Key, row.Icon, row.Amount);
+
+    void OnValidate() => DailyRewardRow.Warn(rows, this);
 }
 ```
 
-Fail-loud on unknown keys is mandatory — never a silent default.
-
-## 5. Build the hooks
+Fill `rows` in the Inspector (Odin `[TableList]`) or from code — the constructor documents what to fill:
 
 ```csharp
-var hooks = new RewardHooks
+rows = new List<DailyRewardRow>
 {
-    Granter        = new GameRewardGranter(),
-    Catalog        = rewardItemData,                                   // RewardItemData asset: Key -> icon / display name
-    PlaySfx        = clip => AudioManager.Instance.PlaySound(clip),   // add a clip overload if the host only has enum-based PlaySound
-    ShowRewardedAd = (placement, onReward, onSkip) =>
-        GameManager.Instance.ShowRewardedVideo(onReward, onSkip, placement),
+    new DailyRewardRow("cash", 7500000, icon: cashIcon),
+    new DailyRewardRow("spin", 1, icon: spinIcon, labelOverride: "RARE"),
+    // ... list position IS the day; no Day/Wedge/Slot field exists
 };
 ```
 
-Each feature manager receives this at `StartClass`. Missing required hooks throw immediately — wire everything before Play.
+Everything you fill lives in the one row class: `Key` (your own vocabulary — the package never interprets it), `Icon`, `Amount`, `ClaimSfx` (per-reward audio), `OnClaimed` (the grant callback), plus per-feature extras (`LabelOverride`/`HideIconUntilClaim`, `Weight`, `UnlockAfterSeconds`).
 
-## 6. Wire managers and panels
+**Incomplete data warns, it never breaks**: missing icons/keys produce one aggregated Console warning naming each gap (`DailyRewardRow.Warn`), and the feature keeps running — finish filling at your own pace. Only structure that cannot run throws: an empty list, fewer than 2 wedges, non-increasing unlock times.
 
-1. Drop the feature manager prefab (e.g. `DailyRewardManager`) as a child of your `GameController`, add a serialized field, and one line in `GameController.StartClass()`:
-   `dailyRewardManager.StartClass(dailyRewardConfig, hooks);`
-2. Drop the feature panel prefab (e.g. `DailyRewardPanel`) under your UI root; add a serialized field in your `UIManager`, call its `StartClass()` in `UIManager.StartClass()`, and add it to your popup tracking list.
-3. Open it like any local panel (`UIManager.Instance.dailyRewardPanel.Show()` or your Open wrapper).
+## 5. Handle the grant — `Row.OnClaimed`, mandatory
 
-## 7. Create data assets
+There are no grant events. **The row's `OnClaimed` callback is the only grant path** — your manager assigns it before `SetInfo` (step 4). If a claimed row's `OnClaimed` is null, nothing is granted and the Console shows `'key' xN was NOT granted`. Every grant also logs key + amount as an audit line.
 
-All package tables are shaped for the NabaGame Googlesheet Importer (original `com.nabagame.googlesheet.importer` or the `com.feeder.editortools` fork): one sheet tab = one ScriptableObject, no bake step. Tab name, A1 cell and headers are fixed per table:
+Your handler switches on `Key` and must fail loudly on an unknown one:
 
-| Tab | A1 (row class) | Headers (prefix_Field, in this order) | Asset the importer writes |
-|---|---|---|---|
-| `RewardItem` | `RewardItem` | `s_Key` `s_DisplayName` `sp_Icon` | `Raw/RawRewardItem.asset` (`RewardItemData`) |
-| `DailyReward` | `DailyRewardRow` | `n_Day` `s_Key` `l_Amount` `s_LabelOverride` `b_HideIconUntilClaim` | `Raw/RawDailyReward.asset` (`DailyRewardRowData`) |
-| `LuckySpin` | `LuckySpinRow` | `n_Wedge` `s_Key` `l_Amount` `n_Weight` | `Raw/RawLuckySpin.asset` (`LuckySpinRowData`) |
+```csharp
+public static void Grant(string key, Sprite icon, long amount)
+{
+    switch (key)
+    {
+        case "cash": GameManager.Instance.PlayerProfile.asmrProfile.AddMoney((int)amount); break;
+        // ... every key used in your row lists
+        default: Debug.LogError($"Unknown reward key '{key}' x{amount} — no grant mapping"); return;
+    }
+    // then: your ItemGrantedEvent / ceremony popup / tracking
+}
+```
 
-Sheet path:
+The ceremony popup is host-side by design: the sample's granter raises `SampleItemGrantedEvent` and `SampleItemReceivedPanel` (sorting 250) batches same-frame grants, stacks duplicates by key, and plays the ceremony. The package never opens it.
 
-1. Paste the three tabs (`Documentation~/SHEET-TEMPLATE.md` has the sample content as TSV). Rules the importer enforces: no blank cell in the first data row (use `-` for "no label override"), `TRUE`/`FALSE` for bools, plain integers (no `7,500,000`), `???`/`RARE` are plain text.
-2. In the importer's SheetInfo set `AssetFolder` (e.g. `_GameBase/Datas/Raw`) and, for the Feeder fork, `SpriteAssetFolder` (where `sp_Icon` names resolve) and `Namespace = NabaGame.Reward`.
-3. Press **Generate Assets** for each tab. **Do not press Generate Script** for these tabs — the row classes already live in the package; generating them again creates duplicate types in `Assembly-CSharp`.
-4. With the original importer `sp_Icon` cannot be filled: after importing `RewardItem` assign the icons in the Inspector (or skip that tab and author `RewardItemData` by hand — it is three rows).
-5. Re-importing keeps the asset GUID and every non-list field (cooldown, spin duration); only rows are rewritten.
+## 6. Assign the hooks — three statics, once, at boot
 
-Hand path: Create → NabaGame → Reward → *Reward Item Data* / *Daily Reward Data* / *Lucky Spin Data*, fill the tables in the Inspector. Same shape, same validators.
+```csharp
+// first lines of your boot Start(), before any panel SetInfo
+RewardHooks.PlaySfx        = clip => { if (clip) SoundManager.Instance.sfxSource.PlayOneShot(clip); };
+RewardHooks.ShowRewardedAd = (placement, onReward, onSkip) => AdManager.Instance.ShowRewardedVideo(onReward, onSkip, placement);
+RewardHooks.PurchaseIap    = (productId, result) => IAPManager.Instance.InitiatePurchase(productId, result);
+```
 
-Either way: assign `RewardItemData` to `hooks.Catalog`, the feature table to the manager's `StartClass`, and fix every Console error from the validators (row count, `Day`/`Wedge` order, empty keys, non-positive amounts/weights, keys missing from the catalog) before Play. `DailyRewardPanel.cardBackgrounds` (7 sprites) is prefab art, not data.
+Unset hooks never throw — the defaults `Debug.LogError` naming the hook and then reward/succeed immediately, so a freshly dragged prefab runs before you wire anything. `PurchaseIap` product ids (e.g. `DailyRewardPanel.openAllIapProductId`) must be registered in your IAP catalog; the displayed price is the panel's `openAllIapPriceText` string — the package never queries the store.
+
+## 7. Wire the panel
+
+1. Drop the feature panel prefab (e.g. `DailyRewardPanel` from the sample) under your UI root; add a field for it on your `UIManagerSingleton` (or use the sample's `SampleUIRoot`, which auto-finds panels in `OnValidate`).
+2. Tune the panel's Inspector knobs if needed — they live on the panel prefab: Daily `openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x5AdsRequired`.
+3. Call your manager's `SetInfo()` **from `Start()` at boot** (see `SampleRewardBoot`) — never from `Awake()` (`UIPanel` applies `startHidden` in its own `Start()`), and never open a panel in the same frame it was initialized.
+   - **Online Reward must be initialized at boot, not lazily on first open** — playtime accrues from `SetInfo`; a lazy init means the grid never unlocks while the panel is closed.
+4. Open it from any button or stub with `OpenPanel()` / close with `ClosePanel()`:
+   `public void OpenDaily() { SampleUIRoot.Instance.dailyRewardPanel.OpenPanel(); }`
+
+Any serialized button/label/badge on the panel may be disabled or deleted — the panel guards every reference and simply drops that affordance; nothing throws.
 
 ## 8. Register ad placements
 
-Each feature spec lists its placement strings (e.g. `OnlineReward_x2Speed`, `LuckySpin_AdSpin`). Register them in your mediation dashboard/tracking the same way you do for game placements.
+Placement strings are `public const` in each panel's `#region API` (`OnlineReward_x2Speed`, `OnlineReward_x5Speed`, `OnlineReward_OpenAll`, `LuckySpin_AdSpin`, `DailyReward_OpenAll`). Register them in your mediation dashboard/tracking the same way you do for game placements.
 
 ## 9. Red dots (optional)
 
-In your `RedDotManager`, subscribe to the package change events and evaluate from public API:
+Subscribe to the package change events and evaluate from the panel queries:
 
 ```csharp
 EventManager.Instance.AddListener<DailyRewardChangedEvent>(_ => Invalidate());
-// evaluator: dailyRewardManager.ClaimableCount > 0
+// evaluators: dailyRewardPanel.ClaimableCount > 0, luckySpinPanel.FreeSpinReady, onlineRewardPanel.HasClaimable
 ```
 
-## 10. Verify
+`SampleHomeButtons` is the complete recipe.
+
+## 10. Installing into ASMR_Tower specifically
+
+The sample is skinned with the ASMR_Tower art set on purpose — it drops into `_ASMR_Tower` and looks native:
+
+1. **Delete `Assets/Samples/NabaGame Reward/0.4.0/` first** (see step 2 — otherwise CS0101 duplicate types).
+2. Import the sample; drag the sample's `SampleUIRoot` prefab (self-contained canvas root with all panels) and a `SampleRewardBoot` object with the three `Sample*` managers into `Scn_GP_ASMR_Tower.unity`. No edits to `UIManagerGlobal.cs` are required.
+3. Fill the three existing `HomePanel` stubs, one line each — the buttons (`btDailyReward`, `btSpin`, `btNoAds`) already exist in the scene with empty `onClick` slots; drag `HomePanel` into them and pick the method:
+   ```csharp
+   public void OpenDaily() { SampleUIRoot.Instance.dailyRewardPanel.OpenPanel(); }
+   public void OpenSpin()  { SampleUIRoot.Instance.luckySpinPanel.OpenPanel(); }
+   ```
+4. Replace the sample adapters in `SampleRewardBoot.SetInfo()` with the host's services (exact one-liners in step 6), and point the granter at `GameManager.Instance.PlayerProfile.asmrProfile.AddMoney(...)` — the `MoneyBar` HUD updates itself via `MoneyEvent`.
+5. Known **host** issues to report to the ASMR team (not package bugs, but they will look like it):
+   - `ASMRProfile.AddMoney` saves a literal `0` to PlayerPrefs (`PlayerPrefs.SetInt("asmr_money", 0)`) — all granted currency evaporates on relaunch until they fix it to save `Money`.
+   - The `UIManagerGlobal` root GameObject is saved inactive in `Scn_GP_ASMR_Tower.unity`, so `UIManagerGlobal.Instance` resolves null as the scene stands.
+
+## 11. Verify
 
 Run the feature spec's verification script (in `FEATURES/<feature>.md`). Common checks for every feature:
 
-- Claim flow grants through **your** granter (watch your currency change) and the package UI updates from the event.
-- Cooldowns/timers survive app pause/resume; kill-app/reopen restores persisted state (and resets session-scoped state where specified).
+- A claim lands in **your** `OnClaimed` handler (watch your currency change) and the Console shows the grant audit line. A logged grant with no currency change means your `OnClaimed` assignment or key mapping is wrong.
+- Cooldowns/timers survive backgrounding (focus loss) and kill-app/reopen restores persisted state (session-scoped state resets where specified).
 - Editor ad path: rewarded flows complete immediately in-editor without an SDK.
 - Open/close the panel repeatedly — no duplicated listeners, no double grants on button spam.
+- Disable or delete any serialized button/label on the panel — the feature degrades silently, nothing throws or gets stuck.

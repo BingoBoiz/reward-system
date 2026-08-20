@@ -14,18 +14,27 @@ namespace NabaGame.Reward.Sample
         [SerializeField, FoldoutGroup("Common")]
         public LuckySpinPanel luckySpinPanel;
 
+        [SerializeField, FoldoutGroup("Common")]
+        public OnlineRewardPanel onlineRewardPanel;
+
+        [SerializeField, FoldoutGroup("Common")]
+        public SampleItemReceivedPanel itemReceivedPanel;
+
         [SerializeField] List<BaseUI> checkHasPopup = new List<BaseUI>();
 
         private void OnValidate()
         {
             if (!dailyRewardPanel) dailyRewardPanel = GetComponentInChildren<DailyRewardPanel>(true);
             if (!luckySpinPanel) luckySpinPanel = GetComponentInChildren<LuckySpinPanel>(true);
+            if (!onlineRewardPanel) onlineRewardPanel = GetComponentInChildren<OnlineRewardPanel>(true);
+            if (!itemReceivedPanel) itemReceivedPanel = GetComponentInChildren<SampleItemReceivedPanel>(true);
         }
 
-        public void StartClass()
+        public void SetInfo()
         {
             if (dailyRewardPanel && !checkHasPopup.Contains(dailyRewardPanel)) checkHasPopup.Add(dailyRewardPanel);
             if (luckySpinPanel && !checkHasPopup.Contains(luckySpinPanel)) checkHasPopup.Add(luckySpinPanel);
+            if (onlineRewardPanel && !checkHasPopup.Contains(onlineRewardPanel)) checkHasPopup.Add(onlineRewardPanel);
         }
 
         public bool HasPopup()

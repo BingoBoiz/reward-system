@@ -3,19 +3,37 @@ using UnityEngine;
 
 namespace NabaGame.Reward
 {
-    public sealed class RewardHooks
+    // host services, assigned once at boot before any panel SetInfo.
+    // defaults keep a freshly dragged prefab working: missing ads/iap reward immediately and log the gap
+    public static class RewardHooks
     {
-        public IRewardGranter Granter;
-        public RewardItemData Catalog;
-        public Action<AudioClip> PlaySfx;
-        public Action<string, Action, Action> ShowRewardedAd;
+        public static Action<AudioClip> PlaySfx = DefaultPlaySfx;
+        public static Action<string, Action, Action> ShowRewardedAd = DefaultShowRewardedAd;
+        public static Action<string, Action<bool>> PurchaseIap = DefaultPurchaseIap;
 
-        public void Validate(string owner, bool requireAds = false)
+        static void DefaultPlaySfx(AudioClip clip)
         {
-            if (Granter == null) throw new InvalidOperationException($"{owner}: RewardHooks.Granter is null");
-            if (Catalog == null) throw new InvalidOperationException($"{owner}: RewardHooks.Catalog is null");
-            if (PlaySfx == null) throw new InvalidOperationException($"{owner}: RewardHooks.PlaySfx is null");
-            if (requireAds && ShowRewardedAd == null) throw new InvalidOperationException($"{owner}: RewardHooks.ShowRewardedAd is null");
+        }
+
+        static void DefaultShowRewardedAd(string placement, Action onReward, Action onSkip)
+        {
+            Debug.LogError($"[RewardHooks] ShowRewardedAd is not set; '{placement}' rewards immediately");
+            onReward?.Invoke();
+        }
+
+        static void DefaultPurchaseIap(string productId, Action<bool> onResult)
+        {
+            Debug.LogError($"[RewardHooks] PurchaseIap is not set; '{productId}' succeeds");
+            onResult?.Invoke(true);
+        }
+
+        // statics survive play sessions when domain reload is disabled
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetState()
+        {
+            PlaySfx = DefaultPlaySfx;
+            ShowRewardedAd = DefaultShowRewardedAd;
+            PurchaseIap = DefaultPurchaseIap;
         }
     }
 }
