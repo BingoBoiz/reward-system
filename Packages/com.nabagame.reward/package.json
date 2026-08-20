@@ -1,6 +1,6 @@
 {
   "name": "com.nabagame.reward",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "displayName": "NabaGame Reward",
   "description": "Reusable reward features for NabaGame projects: Daily Reward, Online Reward (timed grid with x2/x5 ad speed-up), Lucky Spin. Game-agnostic and data-free: the host fills each manager's row list with its own rewards, every player action comes back as an event the host handles (granting included), and audio/ads plug in through a small hooks contract. See Documentation~ for architecture and integration guides.",
   "unity": "2022.3",

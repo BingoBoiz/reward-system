@@ -11,7 +11,7 @@ A weighted prize wheel. One free spin per cooldown window; additional spins by w
 ## UI spec (from mockup)
 
 - Popup with the wheel centered, close (X) top-right.
-- **Wheel of N wedges** (count driven by the row list; the shipped ASMR-Tower wheel art has 8 segments and the panel warns when rows and art disagree), each wedge showing a reward icon + amount label (`1.5K`, `100B`, `X10`, …); one highlighted jackpot wedge allowed via rarity styling. Golden rim with dot lights, white center hub, fixed pointer at 12 o'clock.
+- **Wheel of N wedges** (count = the authored `wedges` list in the prefab — 8 in the shipped board, matching the ASMR-Tower wheel art; the panel warns when `rows.Count` disagrees, and with more rows than wedges the wheel can visually land on a wrapped wedge while the grant `rows[index]` stays correct), each wedge showing a reward icon + amount label (`1.5K`, `100B`, `X10`, …); one highlighted jackpot wedge allowed via rarity styling. Golden rim with dot lights, white center hub, fixed pointer at 12 o'clock.
 - Spin button states below the wheel:
   - **Free spin available** — green `SPIN` button (may carry a red badge).
   - **Cooldown** — ad-spin variant: `SPIN` button with a video icon and caption `Free spin in mm:ss` counting down to the next free spin.
@@ -26,7 +26,7 @@ Row — list position is the wedge (`rows[0]` at 12 o'clock, clockwise):
 
 Validation is lenient (decision #24): missing `Key`/`Icon`/`Amount`, `Weight <= 0` → one aggregated warning via `LuckySpinRow.Warn(rows)`; fewer than 2 rows throws. All-invalid weights fall back to a uniform roll.
 
-Panel knobs (`[SerializeField]` on the `LuckySpinPanel` prefab): `freeSpinCooldownSeconds` (1800), `spinDurationSeconds` (4.5), `spinFullTurns` (5), `spinStartSfx`, `landSfx`, `wheelSegmentCount`, wedge layout values, `buttonSfx`, `tickSfx`.
+Panel knobs (`[SerializeField]` on the `LuckySpinPanel` prefab): `freeSpinCooldownSeconds` (1800), `spinDurationSeconds` (4.5), `spinFullTurns` (5), `spinStartSfx`, `landSfx`, `wedges` (the authored wedge list, clockwise from 12 o'clock — positions are prefab-authored, decision #28), `buttonSfx`, `tickSfx`.
 
 ## Save (PlayerPrefs key `NabaReward.Spin`)
 
@@ -37,7 +37,7 @@ Panel knobs (`[SerializeField]` on the `LuckySpinPanel` prefab): `freeSpinCooldo
 
 ## API surface — `LuckySpinPanel`, `#region API`
 
-- `SetInfo(List<LuckySpinRow> rows)` — single init: validate, load save, arm the cooldown deadline (`TimeScheduler`), build wedges, bind listeners. Call from `Start()` at boot; the panel stays hidden.
+- `SetInfo(List<LuckySpinRow> rows)` — single init: validate, load save, arm the cooldown deadline (`TimeScheduler`), bind the authored wedges, bind listeners. Call from `Start()` at boot; the panel stays hidden.
 - `OpenPanel()` / `ClosePanel()` — dev-facing activation. `ClosePanel()` refuses while `IsSpinning`.
 - Queries: `bool FreeSpinReady` (the red-dot query), `double SecondsUntilFreeSpin`, `bool IsSpinning`, `bool CanSpinByAd`.
 - `ResetProfile()` — QA/debug reset.

@@ -9,7 +9,6 @@ namespace NabaGame.Reward
     public class DailyRewardCard : MonoBehaviour
     {
         [SerializeField] Button button;
-        [SerializeField] Image background;
         [SerializeField] Image icon;
         [SerializeField] TMP_Text claimLabel;
         [SerializeField] TMP_Text amountLabel;
@@ -29,17 +28,15 @@ namespace NabaGame.Reward
         void OnValidate()
         {
             if (!button) button = GetComponent<Button>();
-            if (!background) background = GetComponent<Image>();
             if (!canvasGroup) canvasGroup = GetComponent<CanvasGroup>();
         }
 
-        public void SetInfo(int day, DailyRewardRow row, Sprite cardBackground, Action<int> clickedCallback)
+        public void SetInfo(int day, DailyRewardRow row, Action<int> clickedCallback)
         {
             Day = day;
             onClicked = clickedCallback;
             hideIconUntilClaim = row.HideIconUntilClaim;
 
-            if (background && cardBackground) background.sprite = cardBackground;
             if (icon) icon.sprite = row.Icon;
             if (amountLabel) amountLabel.text = row.HasLabelOverride ? row.LabelOverride : "+" + RewardAmountFormat.Short(row.Amount);
 

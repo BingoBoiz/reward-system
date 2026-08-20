@@ -16,9 +16,9 @@ A 7-day claim strip: once per (UTC) day the player claims the next card in the r
   - **Claimable** — bright card with a `CLAIM` header; may carry a red notification badge.
   - **Locked** — `CLAIM` header shown but visually inert; mystery cards may hide the icon (silhouette / `???`) until claimed.
 - Rarity-colored card frames (e.g. green RARE, orange EPIC) driven by config, not hardcoded.
-- Under the row, `OpenAllRoot` holds **two OPEN ALL buttons stacked at the same position (the mockup's single-button spot, 440x105) — at most ONE is visible, picked by config**:
-  - **IAP button** (blue, gift icon): label `OPEN ALL` + the dev-supplied price string; shown when `openAllIapProductId` is set and the week is not fully opened. **IAP config wins over ads.**
-  - **Ads button** (green, video icon): label `OPEN ALL` + progress `X/N`; shown when IAP is NOT configured, `openAllAdsRequired > 0`, and the week is not fully opened.
+- Under the row, `OpenAllRoot` holds **two OPEN ALL buttons stacked at the same position (the mockup's single-button spot, 440x105) — at most ONE is visible, picked by the `openAllUseAds` Inspector bool**:
+  - **Ads button** (green, video icon): label `OPEN ALL` + progress `X/N`; shown when `openAllUseAds` is on, `openAllAdsRequired > 0`, and the week is not fully opened.
+  - **IAP button** (blue, gift icon): label `OPEN ALL` + the dev-supplied price string; shown when `openAllUseAds` is off, `openAllIapProductId` is set, and the week is not fully opened.
   - When the whole week is opened (`UnopenedCount == 0`) both buttons hide and a static `COME BACK TOMORROW` label shows.
 
 ## Data (dev-filled)
@@ -28,9 +28,11 @@ The host's own manager (template: `Samples~/RewardDemo/Scripts/SampleDailyReward
 Row — the one file the dev fills, list position is the day (`rows[0]` = day 1):
 `{ string Key, Sprite Icon, long Amount, AudioClip ClaimSfx, string LabelOverride, bool HideIconUntilClaim, Action<DailyRewardRow> OnClaimed }` — a constructor documents the fill order for code authoring; empty `LabelOverride` = none.
 
-Validation is lenient (decision #24): missing `Key`/`Icon`/`Amount` → one aggregated warning via `DailyRewardRow.Warn(rows)` (call it from your manager's `OnValidate` too); only a null/empty list throws. A row count other than 7 works — `cardBackgrounds` wrap around with a warning.
+Validation is lenient (decision #24): missing `Key`/`Icon`/`Amount` → one aggregated warning via `DailyRewardRow.Warn(rows)` (call it from your manager's `OnValidate` too); only a null/empty list throws. A row count other than the authored card count warns and binds the min — surplus authored cards stay hidden, surplus rows are unreachable until cards are added in the prefab.
 
-Panel knobs (`[SerializeField]` on the `DailyRewardPanel` prefab): `openAllAdsRequired` (0 = ads button off), `openAllIapProductId` ("" = IAP button off), `openAllIapPriceText` (display string), `cardBackgrounds` (prefab art, not data), spacing/stagger, `buttonSfx`.
+The 7 cards are **pre-authored instances in the prefab**, wired in day order into the panel's `cards` list (decision #28); each card's background sprite is authored on its own Image. Any layout — the demo's horizontal strip or a 3+3+big-day-7 grid — is pure prefab rearrangement, zero C#.
+
+Panel knobs (`[SerializeField]` on the `DailyRewardPanel` prefab): `openAllUseAds` (on = ads button, off = IAP button), `openAllAdsRequired` (0 = ads button off), `openAllIapProductId` ("" = IAP button off), `openAllIapPriceText` (display string), `cards` (the authored card list, day order), `cardStaggerDelay`, `buttonSfx`.
 
 ## Save (PlayerPrefs key `NabaReward.Daily`)
 
@@ -45,7 +47,7 @@ Reset semantics: persists across sessions. Saved on every mutation — there is 
 
 ## API surface — `DailyRewardPanel`, `#region API`
 
-- `SetInfo(List<DailyRewardRow> rows)` — single init: validate, load save, arm the midnight rollover (`TimeScheduler`), build cards, bind listeners. Call from `Start()` at boot; the panel stays hidden.
+- `SetInfo(List<DailyRewardRow> rows)` — single init: validate, load save, arm the midnight rollover (`TimeScheduler`), bind the authored cards, bind listeners. Call from `Start()` at boot; the panel stays hidden.
 - `OpenPanel()` / `ClosePanel()` — dev-facing activation (refresh + `Show()` / `Hide()` + `DailyRewardPanelClosedEvent`).
 - Queries: `int DayCount`, `int StreakDay`, `int ClaimableCount` (0 or 1 today — the red-dot query), `int UnopenedCount`.
 - `ResetProfile()` — QA/debug reset.
@@ -58,7 +60,7 @@ A claim advances the streak, saves, plays the row's `ClaimSfx`, `Debug.Log`s the
 - **Grants: `Row.OnClaimed`** (decision #22) — no grant events exist.
 - `DailyRewardChangedEvent` — notification, raised after claim, reset, ads-progress ticks, and at UTC-midnight rollover (red dots / refresh).
 - `DailyRewardPanelClosedEvent` — notification, raised when the player closes the panel.
-- Hooks used: `PlaySfx`, `ShowRewardedAd` (when `openAllAdsRequired > 0`), `PurchaseIap` (when `openAllIapProductId` is set; contract: the callback must fire on success, failure, and cancel). All optional — unset hooks LogError and proceed (decision #23).
+- Hooks used: `PlaySfx`, `ShowRewardedAd` (when `openAllUseAds` is on and `openAllAdsRequired > 0`), `PurchaseIap` (when `openAllUseAds` is off and `openAllIapProductId` is set; contract: the callback must fire on success, failure, and cancel). All optional — unset hooks LogError and proceed (decision #23).
 - Placements: `DailyReward_OpenAll`.
 
 ## Verification script
@@ -69,16 +71,16 @@ A claim advances the streak, saves, plays the row's `ClaimSfx`, `Debug.Log`s the
 4. Kill app / reopen → streak, claimed states, and ads progress restored from PlayerPrefs.
 5. Open/close panel repeatedly → no duplicated listeners, no double grants.
 6. Ads Open All: with `openAllAdsRequired = 3`, click the ads button 3 times → label 0/3 → 1/3 → 2/3 → the third completed ad claims all remaining days (one audit log + `OnClaimed` per day), buttons hide, `COME BACK TOMORROW` shows.
-7. IAP Open All: click the IAP button → `RewardHooks.PurchaseIap` runs; `cb(true)` claims all remaining days, `cb(false)` logs and changes nothing, button stays clickable.
+7. IAP Open All: turn `openAllUseAds` off, click the IAP button → `RewardHooks.PurchaseIap` runs; `cb(true)` claims all remaining days, `cb(false)` logs and changes nothing, button stays clickable.
 8. Claim today's card first, then Open All → only the remaining days grant (no double grant).
 9. Claim day 7 singly → whole week renders claimed, Open All buttons hide same-day; next UTC day resets to day 1.
-10. Both configs off → no Open All buttons, single-card claim unaffected; unset ad/IAP hooks only LogError.
-11. Null-button pass: disable/delete `openAllAdsButton`, `openAllIapButton`, `comeBackLabel`, or a card's sub-widgets → no exception, panel still opens, claims still work.
+10. Active mode's config empty (`openAllUseAds` on with `openAllAdsRequired = 0`, or off with no product id) → no Open All buttons plus one config warning, single-card claim unaffected; unset ad/IAP hooks only LogError.
+11. Null-button pass: disable/delete `openAllAdsButton`, `openAllIapButton`, `comeBackLabel`, a card's sub-widgets, or a whole authored card instance (its `cards` entry goes null) → no exception, panel still opens, remaining claims still work.
 12. Clear one row's `OnClaimed` → claiming it logs `was NOT granted` and grants nothing; everything else unaffected.
 
 ## Decisions
 
-- **OPEN ALL (reworked 2026-08-20):** Open All claims **every remaining day of the displayed week at once**, gated behind ads or IAP. Two buttons share the mockup's single-button position and **only one shows at a time, driven by data: IAP config (`openAllIapProductId`) wins; otherwise the ads button shows when `openAllAdsRequired > 0`** — never both. The package itself runs the ad flow / calls the IAP hook — the dev supplies only `openAllAdsRequired`, `openAllIapProductId`, `openAllIapPriceText`. The visible button stays available after today's card was tapped; it hides only when the week is fully opened.
+- **OPEN ALL (reworked 2026-08-20; mode switch made explicit later the same day):** Open All claims **every remaining day of the displayed week at once**, gated behind ads or IAP. Two buttons share the mockup's single-button position and **only one shows at a time, picked by the `openAllUseAds` Inspector bool (on = ads, off = IAP)** — never both; the inactive mode's flow is also refused, and the earlier "IAP config wins over ads" data rule is retired. The package itself runs the ad flow / calls the IAP hook — the dev supplies only `openAllUseAds`, `openAllAdsRequired`, `openAllIapProductId`, `openAllIapPriceText`. The visible button stays available after today's card was tapped; it hides only when the week is fully opened.
 - **Post-day-7 (reworked 2026-08-20):** claiming day 7 (or Open All) sets `StreakDay = 7` — the whole week renders claimed for the rest of the day and Open All is gone. The reset to day 1 happens on the next UTC day (`ResetWeekIfElapsed`). The old `% 7` wrap was an exploit: it made the week look unclaimed again immediately.
 - **Ads progress:** `OpenAllAdsWatched` persists and carries across week cycles until consumed by `OpenAll()`; it is not reset at rollover.
 - **Streak break:** missing a day does not reset the streak. The player simply resumes at the next unclaimed day. `ClaimableCount` is 1 whenever `StreakDay < DayCount` and `LastClaimDateUtc != today (UTC)`.

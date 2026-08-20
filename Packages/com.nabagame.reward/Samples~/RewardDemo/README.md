@@ -21,7 +21,7 @@ real game copies.
 | Folder | Contents |
 |---|---|
 | `Scripts/` | `SampleRewardBoot` (composition root: assigns the three `RewardHooks` statics, then calls every `SetInfo` from `Start()`), `SampleDailyRewardManager` / `SampleLuckySpinManager` / `SampleOnlineRewardManager` (the dev-owned managers: `[TableList] rows` + `OnClaimed` → `SampleRewardGranter.Grant`), `SampleRewardGranter` (maps `Row.Key` onto PlayerPrefs counters, raises `SampleItemGrantedEvent`), `SampleUIRoot` (UI composition root, auto-finds panels), `SampleCurrencyHud`, `SampleHomeButtons` (red dots over the change events + panel queries), `SampleItemReceivedPanel` + `SampleItemReceivedCell` + `SampleItemReceivedBurstFx` (ceremony popup over `SampleItemGrantedEvent`, same-frame batching, key stacking) |
-| `Prefabs/` | `SampleUIRoot` (root Canvas, 2400x1080 ScaleWithScreenSize match 0.5, HUD + home buttons + all panels), `DailyRewardPanel` + `DailyRewardCard` template, `LuckySpinPanel` + `LuckySpinWedge` template, `OnlineRewardPanel` + `OnlineRewardCell` template, `SampleOnlineRewardManager` (carries the 18 sample rows), `SampleItemReceivedPanel` (sorting 250) + `SampleItemReceivedCell` template |
+| `Prefabs/` | `SampleUIRoot` (root Canvas, 2400x1080 ScaleWithScreenSize match 0.5, HUD + home buttons + all panels), `DailyRewardPanel` + 7 authored `DailyRewardCard` instances (backgrounds per-card, wired into `cards`), `LuckySpinPanel` + 8 authored `LuckySpinWedge` instances (wired into `wedges`), `OnlineRewardPanel` + `OnlineRewardCell` template, `SampleOnlineRewardManager` (carries the 18 sample rows), `SampleItemReceivedPanel` (sorting 250) + `SampleItemReceivedCell` template |
 | `Art/`, `Fonts/` | ASMR-Tower sprites and the PassionOne TMP font the prefabs reference; `Art/ItemReceived/` holds the ceremony fx sprites |
 
 The package owns no data assets: the reward rows live on the `Sample*` managers (`SampleDailyRewardManager.rows`
@@ -48,5 +48,6 @@ Everything else — claim rules, streak, UTC rollover, weighted roll, cooldown, 
 persistence — lives on the package panels and needs no changes. Panels open through `OpenPanel()` and
 close through `ClosePanel()`; each panel's `#region API` is the entire surface you need. Any serialized
 button/label on a panel may be disabled or deleted — the feature degrades silently. The wheel art has 8
-segments; a row count that disagrees with `LuckySpinPanel.wheelSegmentCount` logs a warning. Debug
+segments, matching the 8 authored wedges in `LuckySpinPanel.wedges`; a row count that disagrees with the
+authored wedge list logs a warning. Debug
 `[Button]`s on the panels cover force-wedge, cooldown, add-seconds, roll distribution, and profile reset.

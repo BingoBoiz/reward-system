@@ -2529,9 +2529,41 @@ PrefabInstance:
       propertyPath: m_Name
       value: 200_LuckySpinPanel
       objectReference: {fileID: 0}
+    - target: {fileID: 3755641514393389345, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 5021067768088750745, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 5057306235966779467, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 5990850006285654562, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
       propertyPath: m_BlockingMask.m_Bits
       value: 55
+      objectReference: {fileID: 0}
+    - target: {fileID: 7138090263166133365, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 7415373186426699023, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 7934965297649028314, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8447089191318417938, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 9049134955605171360, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 9087665878462019546, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -2581,6 +2613,22 @@ PrefabInstance:
     - target: {fileID: 2326794540249907265, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
       propertyPath: m_AnchorMin.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2951472656108307900, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 3314841327107380747, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 3505169815446769985, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 3914137432692884214, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 3948931875239147676, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
       propertyPath: m_Pivot.x
@@ -2662,9 +2710,53 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5964765981855067012, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6066921746535446579, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6375141661307291905, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6549959715784471048, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6634703341612687807, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6812472030939717993, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: openAllUseAds
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6812855183817284278, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 7168340681346153318, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 7317819426483874001, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 8013323716994955992, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
       propertyPath: m_Name
       value: 200_DailyRewardPanel
+      objectReference: {fileID: 0}
+    - target: {fileID: 8190913937862526888, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8601570679374992415, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

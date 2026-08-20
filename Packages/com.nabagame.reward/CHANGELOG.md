@@ -2,11 +2,26 @@
 
 All notable changes to this package are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.9.0] - 2026-08-20
+
+Fixed-board refactor (ARCHITECTURE decision #28): the two fixed-count boards are now inspector-authored. Breaking.
+
+### Changed (breaking)
+
+- **Daily's 7 cards and Spin's 8 wedges are no longer instantiated from a template at runtime** — they are pre-authored nested prefab instances inside the panel prefab, wired in order into a serialized `List<>` (`DailyRewardPanel.cards`, `LuckySpinPanel.wedges`). Card background sprites are authored per-instance on each card's Image (the panel no longer pushes them), so layout and skins are prefab concerns: rearranging the 7 cards into a 3+3+big-day-7 grid takes zero C#. The demo prefabs keep the exact previous layouts (horizontal strip at 289px spacing; wedges polar at radius 208).
+- `SetInfo(rows)` now **binds** rows onto the authored list instead of building clones: count mismatch warns and binds the min (surplus authored entries are deactivated), an empty authored list LogErrors and skips (panel logic still runs), null list entries are skipped silently (#26), and re-entry rebinds cleanly — a later `SetInfo` with more or fewer rows shows/hides the right cards (the old one-shot `built` latch stranded them).
+- `DailyRewardCard.SetInfo(int day, DailyRewardRow row, Action<int> clickedCallback)` — the `Sprite cardBackground` parameter is gone.
+- Spin's art-mismatch warning now compares `rows.Count` against the authored wedge list (`wheelSegmentCount` is gone — the authored count *is* the segment count). If a host passes more rows than authored wedges, the wheel can visually land on a wrapped wedge while the grant (`rows[index]`) stays correct — the warning names the mismatch up front.
+- Online Reward cells and the sample's ItemReceived pool stay template-instantiated: their counts are genuinely dynamic (host row data / grant queue).
+
+### Removed
+
+- `DailyRewardPanel`: `cardsRoot`, `cardTemplate`, `cardBackgrounds`, `cardSpacing` serialized fields; `LuckySpinPanel`: `wedgesRoot`, `wedgeTemplate`, `wedgeRadius`, `wheelSegmentCount`; `DailyRewardCard`: the `background` Image reference (the root Image renders its authored sprite untouched).
 
 ### Changed
 
-- Panel inspectors reorganized with Odin groups: every serialized field on `DailyRewardPanel`, `LuckySpinPanel`, and `OnlineRewardPanel` now lives in a `Config` / `UI` / `FX` tab (`TabGroup`), with `FoldoutGroup` sub-sections for crowded tabs (Daily `Open All`/`Cards`, Spin `Spin Button`/`Wheel`/`SFX`). Each field also carries a short Vietnamese `//` comment (under 7 words) describing what to fill in — a deliberate, protected exception to the English-comments rule (see CONVENTIONS.md). No behavior or serialization change; existing prefab values are untouched.
+- Daily Open All mode is now an explicit Inspector bool **`openAllUseAds`** on `DailyRewardPanel` (Config tab, default on): on shows the ads button, off shows the IAP button — replacing the 0.8.1 "IAP config wins over ads" inference, so switching modes no longer requires clearing `openAllIapProductId`. The inactive mode's flow is refused (`RequestOpenAllAds`/`RequestOpenAllIap` gate on the bool), and `WarnConfig` warns when the active mode's config is empty. The sample `DailyRewardPanel.prefab` sets it on, so the demo now shows the ads OPEN ALL (3 ads) instead of the IAP one.
+- Panel inspectors reorganized into one Odin `TabGroup` on `DailyRewardPanel`, `LuckySpinPanel`, and `OnlineRewardPanel`: `Rows` (read-only host data preview), `Config`, `UI`, `FX`, `Profile` (inline save-state view, now visible on all three panels), and `Debug` (parameterless preview buttons packed into horizontal `ButtonGroup` rows, parameterized ones full-width). Crowded tabs keep `FoldoutGroup` sub-sections (Daily `Open All`/`Cards`, Spin `Spin Button`/`Wheel`/`SFX`). Each serialized field also carries a short Vietnamese `//` comment (under 7 words) describing what to fill in — a deliberate, protected exception to the English-comments rule (see CONVENTIONS.md). No behavior or serialization change; existing prefab values are untouched.
 - Demo panel prefabs (`DailyRewardPanel`, `LuckySpinPanel`, `OnlineRewardPanel`, `SampleItemReceivedPanel`) now ship `useCustomStartAnchoredPosition = true` with `customStartAnchoredPosition = (0, 0, 0)`, so a panel always opens centered no matter where its RectTransform sits in the editor. `SampleUIRoot.prefab` parks the panels on a non-overlapping grid with a clear gap — Daily `(0, 1500)`, Online `(0, -1500)`, Spin `(2800, 0)`, ItemReceived `(-2800, 0)` — and pins the always-visible HUD roots (`HomeButtons`, `SampleCurrencyHud`, which have no `UIElement` to snap them back) at `(0, 0)`.
 
 ## [0.8.1] - 2026-08-20

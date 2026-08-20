@@ -39,7 +39,7 @@ Packages/com.nabagame.reward/
 - **No new dependencies** beyond the list in README.md without a decision recorded in ARCHITECTURE.md §9 and a CHANGELOG entry.
 - **No save plugin, no ads SDK.** PlayerPrefs (§6 of ARCHITECTURE.md) and the ads hook (§8) only.
 - **No `Update()` polling** — `TimeScheduler` or UniTask loops with explicit lifetime (countdown loops gate on `IsVisible()`).
-- **No runtime-constructed UI** — prefab-authored, disabled templates for lists.
+- **No runtime-constructed UI** — prefab-authored: fixed-count boards are pre-authored instances wired into a serialized `List<>` (decision #28), genuinely dynamic lists instantiate a disabled authored template.
 
 ## Naming and style
 
@@ -48,10 +48,10 @@ Packages/com.nabagame.reward/
 - Public type names must stay distinctive (feature-prefixed): consumer code is global-namespace and already defines `RewardType`, `GameMode`, `OfferType`, `UIManager`, `RewardCheckPointData` (CONSUMER-STYLE.md).
 - Public API stays `void` + callbacks + events — no `async UniTask<T>` signatures (UniTask is internal-only; the consumer team does not use it).
 - The package ships no `[CreateAssetMenu]` data types — data authoring is the host's business.
-- **Initialization is `SetInfo(...)` only** — the company-standard init verb (`StartClass` is retired, decision #25). No feature logic in Unity `Start()`; `Awake` only for self-contained setup; `SetInfo` re-entry must not duplicate listeners (`RemoveListener` before `AddListener`; `RewardUi.Bind` does both for buttons).
+- **Initialization is `SetInfo(...)` only** — the company-standard init verb (`StartClass` is retired, decision #25). No feature logic in Unity `Start()`; `Awake` only for self-contained setup; `SetInfo` re-entry must not duplicate listeners (`RemoveListener` before `AddListener`; `RewardUi.Bind` does both for buttons) and must rebind cleanly — on a fixed board a later `SetInfo` with more or fewer rows shows/hides the right authored entries.
 - **Panel activation is `OpenPanel()` / `ClosePanel()`** — never rename them: the demo host's `BaseUIInspectorProcessor` matches those exact strings for the Odin inspector buttons. No parameterless `SetInfo()`/`Close()` aliases.
 - **Panel regions are a fixed vocabulary, in this order: `API`, `Logic`, `UI`, `Debug`.** `API` comes first and must be self-sufficient — a consuming dev reads only that region (init, open/close, red-dot queries, reset, placement consts). Same four names in every panel; widgets and plain data classes get no regions.
-- **Every serialized UI reference is optional** (decision #26): guard every dereference (`if (button)`, `if (label)`), `LogError`-and-skip on a missing template, bounds-check every cell/wedge index, keep `HandleClicked`-style callbacks null-safe. A disabled or deleted button silently disables its feature — it never throws and never deadlocks a flow.
+- **Every serialized UI reference is optional** (decision #26): guard every dereference (`if (button)`, `if (label)`), `LogError`-and-skip on a missing template or an empty authored board list, silently skip null authored-list entries, bounds-check every cell/wedge index, keep `HandleClicked`-style callbacks null-safe. A disabled or deleted button silently disables its feature — it never throws and never deadlocks a flow.
 - Comments explain hidden constraints only. Identifiers and comments in English. **One deliberate exception:** the `// ...` Vietnamese comments (under 7 words) on every serialized field of the three feature panels are dev-facing field guides for the consuming team — never translate, rewrite, or delete them.
 - Do not extract a method whose body is 3 lines or fewer; inline it (exceptions: Unity messages, `[Button]` debug methods, method-group handlers, and a guard helper used across many call sites like `RewardUi.Bind`).
 - Odin attributes are allowed and encouraged (`[TableList]`, `[ShowInInspector, ReadOnly]` for the panel's runtime row view, `[Button, DisableInEditorMode]` for debug).
@@ -82,5 +82,5 @@ A feature is done only when all of these hold:
 - [ ] `Samples~` contains the `Sample*` manager, adapters, and filled row list needed to run it in a fresh host — one scene, no extra setup.
 - [ ] INTEGRATION-GUIDE.md steps reproduce it from zero, verified by actually following them.
 - [ ] Feature spec in `FEATURES/` matches the shipped behavior; RefUI mockup matched (or deviations recorded in the spec).
-- [ ] Verification script in the feature spec passes: claim flows, cooldowns, kill-app/reopen, editor ad path, repeated open/close without listener duplication, button spam, **and the null-button pass** (disable/delete each serialized reference — nothing throws or sticks).
+- [ ] Verification script in the feature spec passes: claim flows, cooldowns, kill-app/reopen, editor ad path, repeated open/close without listener duplication, button spam, **and the null-button pass** (disable/delete each serialized reference, including an authored card/wedge instance — nothing throws or sticks).
 - [ ] CHANGELOG entry written.

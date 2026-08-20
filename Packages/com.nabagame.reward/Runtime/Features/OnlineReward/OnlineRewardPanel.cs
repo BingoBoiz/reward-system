@@ -38,7 +38,7 @@ namespace NabaGame.Reward
         public const string X2Placement = "OnlineReward_x2Speed";
         public const string X5Placement = "OnlineReward_x5Speed";
 
-        [ShowInInspector, ReadOnly, TableList, PropertyOrder(-1)]
+        [ShowInInspector, ReadOnly, TableList, TabGroup("Tabs", "Rows")]
         List<OnlineRewardRow> rows = new List<OnlineRewardRow>(); // dữ liệu do manager truyền vào
 
         [SerializeField, TabGroup("Tabs", "Config")] float x2DurationSeconds = 120f; // giây hiệu lực tua x2
@@ -68,6 +68,7 @@ namespace NabaGame.Reward
         bool built;
         CancellationTokenSource countdownCts;
 
+        [ShowInInspector, TabGroup("Tabs", "Profile"), HideLabel, InlineProperty]
         public OnlineRewardProfile Profile { get; private set; }
 
         #region API
@@ -519,21 +520,16 @@ namespace NabaGame.Reward
 
         #region Debug
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Panel"), Button("Open"), DisableInEditorMode]
         void PreviewOpen() => OpenPanel();
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Panel"), Button("Close"), DisableInEditorMode]
         void PreviewClose() => ClosePanel();
 
-        [Button, DisableInEditorMode]
-        void PreviewAddSeconds(double seconds)
-        {
-            accumulatedSeconds += seconds;
-            RaiseChanged();
-            ScheduleNextUnlock();
-        }
+        [ButtonGroup("Tabs/Debug/Panel"), Button("Reset Session"), DisableInEditorMode]
+        void PreviewResetSession() => ResetSession();
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Claim"), Button("Unlock All"), DisableInEditorMode]
         void PreviewUnlockAll()
         {
             accumulatedSeconds = rows[rows.Count - 1].UnlockAfterSeconds;
@@ -541,16 +537,10 @@ namespace NabaGame.Reward
             ScheduleNextUnlock();
         }
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Claim"), Button("Open All"), DisableInEditorMode]
         void PreviewOpenAll() => RequestOpenAll();
 
-        [Button, DisableInEditorMode]
-        void PreviewSpeedUp(int multiplier) => RequestSpeedUp(multiplier);
-
-        [Button, DisableInEditorMode]
-        void PreviewActivateSpeedUp(int multiplier) => ActivateSpeedUp(multiplier);
-
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Claim"), Button("Clear Speed-Ups"), DisableInEditorMode]
         void PreviewClearSpeedUps()
         {
             FlushPlaytime();
@@ -562,8 +552,19 @@ namespace NabaGame.Reward
             RaiseChanged();
         }
 
-        [Button, DisableInEditorMode]
-        void PreviewResetSession() => ResetSession();
+        [TabGroup("Tabs", "Debug"), Button("Add Seconds"), DisableInEditorMode]
+        void PreviewAddSeconds(double seconds)
+        {
+            accumulatedSeconds += seconds;
+            RaiseChanged();
+            ScheduleNextUnlock();
+        }
+
+        [TabGroup("Tabs", "Debug"), Button("Speed Up (via ad flow)"), DisableInEditorMode]
+        void PreviewSpeedUp(int multiplier) => RequestSpeedUp(multiplier);
+
+        [TabGroup("Tabs", "Debug"), Button("Activate Speed Up"), DisableInEditorMode]
+        void PreviewActivateSpeedUp(int multiplier) => ActivateSpeedUp(multiplier);
 
         #endregion
     }

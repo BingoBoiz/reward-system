@@ -97,7 +97,7 @@ Unset hooks never throw — the defaults `Debug.LogError` naming the hook and th
 ## 7. Wire the panel
 
 1. Drop the feature panel prefab (e.g. `DailyRewardPanel` from the sample) under your UI root; add a field for it on your `UIManagerSingleton` (or use the sample's `SampleUIRoot`, which auto-finds panels in `OnValidate`).
-2. Tune the panel's Inspector knobs if needed — they live on the panel prefab: Daily `openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x5AdsRequired`.
+2. Tune the panel's Inspector knobs if needed — they live on the panel prefab: Daily `openAllUseAds` (on = ads button, off = IAP button)/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x5AdsRequired`.
 3. Call your manager's `SetInfo()` **from `Start()` at boot** (see `SampleRewardBoot`) — never from `Awake()` (`UIPanel` applies `startHidden` in its own `Start()`), and never open a panel in the same frame it was initialized.
    - **Online Reward must be initialized at boot, not lazily on first open** — playtime accrues from `SetInfo`; a lazy init means the grid never unlocks while the panel is closed.
 4. Open it from any button or stub with `OpenPanel()` / close with `ClosePanel()`:

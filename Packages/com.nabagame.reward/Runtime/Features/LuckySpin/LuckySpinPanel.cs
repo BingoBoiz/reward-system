@@ -18,13 +18,12 @@ namespace NabaGame.Reward
         public const int ProfileVersion = 1;
         public const string AdPlacement = "LuckySpin_AdSpin";
 
-        [ShowInInspector, ReadOnly, TableList, PropertyOrder(-1)]
+        [ShowInInspector, ReadOnly, TableList, TabGroup("Tabs", "Rows")]
         List<LuckySpinRow> rows = new List<LuckySpinRow>(); // dữ liệu do manager truyền vào
 
         [SerializeField, Min(1), TabGroup("Tabs", "Config")] int freeSpinCooldownSeconds = 1800; // giây chờ giữa hai lượt free
         [SerializeField, Min(1f), TabGroup("Tabs", "Config")] float spinDurationSeconds = 4.5f; // thời gian quay một lượt
         [SerializeField, Min(1), TabGroup("Tabs", "Config")] int spinFullTurns = 5; // số vòng quay trọn vẹn
-        [SerializeField, TabGroup("Tabs", "Config")] int wheelSegmentCount = 8; // số múi trên ảnh vòng quay
 
         [SerializeField, TabGroup("Tabs", "UI")] Button closeButton; // nút đóng panel
         [SerializeField, TabGroup("Tabs", "UI")] TMP_Text cooldownLabel; // chữ đếm ngược lượt free
@@ -34,9 +33,7 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] GameObject videoIcon; // icon ads khi hết free
         [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform wheel; // hình vòng quay sẽ xoay
         [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform pointer; // kim chỉ phần thưởng
-        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform wedgesRoot; // chỗ chứa các múi thưởng
-        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] LuckySpinWedge wedgeTemplate; // múi mẫu để nhân bản
-        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] float wedgeRadius = 205f; // bán kính đặt múi thưởng
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] List<LuckySpinWedge> wedges = new List<LuckySpinWedge>(); // múi xếp sẵn theo chiều kim
 
         [SerializeField, TabGroup("Tabs", "FX")] float windUpSeconds = 0.45f; // giây kéo ngược lấy đà
         [SerializeField, TabGroup("Tabs", "FX")] float windUpDegrees = 22f; // độ kéo ngược lấy đà
@@ -47,16 +44,15 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip landSfx; // tiếng lúc kim dừng lại
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
-        readonly List<LuckySpinWedge> wedges = new List<LuckySpinWedge>();
         readonly AdFlow adFlow = new AdFlow();
         TimeScheduler.Handle cooldownHandle;
-        bool built;
         Sequence spinSequence;
         Tween pointerTween;
         CancellationTokenSource countdownCts;
         Vector2 spinLabelRestPosition;
         int lastTickWedge = -1;
 
+        [ShowInInspector, TabGroup("Tabs", "Profile"), HideLabel, InlineProperty]
         public LuckySpinProfile Profile { get; private set; }
 
         float WedgeStep => wedges.Count == 0 ? 360f : 360f / wedges.Count;
@@ -72,9 +68,8 @@ namespace NabaGame.Reward
 
             Profile = RewardProfileStore.Load<LuckySpinProfile>(SaveKey, ProfileVersion);
             ScheduleCooldownEnd();
-            BuildWedges();
+            BindWedges();
             BindUi();
-            for (int i = 0; i < wedges.Count && i < rows.Count; i++) wedges[i].SetInfo(i, rows[i]);
             RefreshAll();
         }
 
@@ -183,7 +178,7 @@ namespace NabaGame.Reward
             if (row.OnClaimed != null) row.OnClaimed(row);
             else Debug.LogError($"[LuckySpinPanel] rows[{wedgeIndex}].OnClaimed is null, '{row.Key}' x{row.Amount} was NOT granted", this);
 
-            if (IsVisible() && wedgeIndex < wedges.Count) wedges[wedgeIndex].PlayWinPunch();
+            if (IsVisible() && wedgeIndex < wedges.Count && wedges[wedgeIndex]) wedges[wedgeIndex].PlayWinPunch();
             RaiseChanged();
         }
 
@@ -206,6 +201,12 @@ namespace NabaGame.Reward
             EventManager.Instance.Raise(new LuckySpinChangedEvent());
         }
 
+        // captured before any RefreshAll shifts the label sideways
+        void Awake()
+        {
+            if (spinLabel) spinLabelRestPosition = spinLabel.rectTransform.anchoredPosition;
+        }
+
         void OnDestroy()
         {
             TimeScheduler.Cancel(ref cooldownHandle);
@@ -217,31 +218,23 @@ namespace NabaGame.Reward
 
         #region UI
 
-        void BuildWedges()
+        void BindWedges()
         {
-            if (built) return;
-            built = true;
-
-            if (!wedgeTemplate)
+            if (wedges.Count == 0)
             {
-                Debug.LogError("[LuckySpinPanel] wedgeTemplate is not assigned, no wedges will be shown", this);
+                Debug.LogError("[LuckySpinPanel] wedges list is empty, no wedges will be shown", this);
                 return;
             }
 
-            if (spinLabel) spinLabelRestPosition = spinLabel.rectTransform.anchoredPosition;
-            if (rows.Count != wheelSegmentCount)
-                Debug.LogWarning($"[LuckySpinPanel] rows has {rows.Count} wedges but the wheel art has {wheelSegmentCount} segments", this);
+            if (wedges.Count != rows.Count)
+                Debug.LogWarning($"[LuckySpinPanel] rows has {rows.Count} wedges but the prefab has {wedges.Count}, extras stay hidden", this);
 
-            wedgeTemplate.gameObject.SetActive(false);
-            Transform parent = wedgesRoot ? wedgesRoot : wedgeTemplate.transform.parent;
-            for (int i = 0; i < rows.Count; i++)
+            for (int i = 0; i < wedges.Count; i++)
             {
-                LuckySpinWedge wedge = Instantiate(wedgeTemplate, parent);
-                wedge.gameObject.SetActive(true);
-                wedge.name = $"Wedge_{i}";
-                float angle = (i + 0.5f) * (360f / rows.Count) * Mathf.Deg2Rad;
-                ((RectTransform)wedge.transform).anchoredPosition = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle)) * wedgeRadius;
-                wedges.Add(wedge);
+                if (!wedges[i]) continue;
+                bool used = i < rows.Count;
+                wedges[i].gameObject.SetActive(used);
+                if (used) wedges[i].SetInfo(i, rows[i]);
             }
         }
 
@@ -331,7 +324,7 @@ namespace NabaGame.Reward
         {
             if (!wheel || wedges.Count == 0) return;
             float z = wheel.localEulerAngles.z;
-            for (int i = 0; i < wedges.Count; i++) wedges[i].KeepUpright(z);
+            for (int i = 0; i < wedges.Count; i++) if (wedges[i]) wedges[i].KeepUpright(z);
 
             int tick = Mathf.FloorToInt(Mathf.Repeat(z, 360f) / WedgeStep);
             if (tick == lastTickWedge) return;
@@ -366,26 +359,34 @@ namespace NabaGame.Reward
 
         #region Debug
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Panel"), Button("Open"), DisableInEditorMode]
         void PreviewOpen() => OpenPanel();
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Panel"), Button("Close"), DisableInEditorMode]
         void PreviewClose() => ClosePanel();
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Panel"), Button("Reset + Reopen"), DisableInEditorMode]
+        void PreviewResetAndReopen()
+        {
+            ResetProfile();
+            Hide();
+            OpenPanel();
+        }
+
+        [ButtonGroup("Tabs/Debug/Spin"), Button("Spin Free"), DisableInEditorMode]
         void PreviewSpinFree() => Debug.Log($"[LuckySpinPanel] SpinFree() -> {SpinFree()}");
 
-        [Button, DisableInEditorMode]
+        [ButtonGroup("Tabs/Debug/Spin"), Button("Spin By Ad"), DisableInEditorMode]
         void PreviewSpinByAd() => Debug.Log($"[LuckySpinPanel] SpinByAd() -> {SpinByAd()}");
 
-        [Button, DisableInEditorMode]
+        [TabGroup("Tabs", "Debug"), Button("Force Wedge"), DisableInEditorMode]
         void PreviewForceWedge(int wedgeIndex)
         {
             if (IsSpinning) return;
             BeginSpin(Mathf.Clamp(wedgeIndex, 0, rows.Count - 1));
         }
 
-        [Button, DisableInEditorMode]
+        [TabGroup("Tabs", "Debug"), Button("Set Cooldown Seconds"), DisableInEditorMode]
         void PreviewSetCooldownSeconds(int seconds)
         {
             Profile.NextFreeSpinAtMs = TimeScheduler.NowMs + seconds * 1000L;
@@ -394,15 +395,7 @@ namespace NabaGame.Reward
             RaiseChanged();
         }
 
-        [Button, DisableInEditorMode]
-        void PreviewResetAndReopen()
-        {
-            ResetProfile();
-            Hide();
-            OpenPanel();
-        }
-
-        [Button, DisableInEditorMode]
+        [TabGroup("Tabs", "Debug"), Button("Roll Distribution"), DisableInEditorMode]
         void PreviewRollDistribution(int rolls = 1000)
         {
             int[] hits = new int[rows.Count];

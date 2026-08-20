@@ -4,7 +4,7 @@ Development plan for `com.nabagame.reward`. Ordering principle: **package skelet
 
 Dependencies: `0 → 1 → {2 → 3, 4} → 5` (Lucky Spin can run in parallel with Daily/Online). Phase 2.5 (contract flip) was inserted 2026-08-20 and reworks everything built before it; phase 3 builds on the new contract.
 
-**Status 2026-08-20:** phases 0, 1, 2, 2.5, 3, 4, **4.5** done (package `0.8.0` — all three features shipped on the panel-owned contract: one prefab per feature, host-written `Sample*` managers, grants via `Row.OnClaimed`, static `RewardHooks`, `SetInfo(rows)` init). **Next: phase 5** (sample import dry-run into a scratch project + `_ASMR_Tower`, polish, `1.0.0`).
+**Status 2026-08-20:** phases 0, 1, 2, 2.5, 3, 4, **4.5** done (package `0.8.0` — all three features shipped on the panel-owned contract: one prefab per feature, host-written `Sample*` managers, grants via `Row.OnClaimed`, static `RewardHooks`, `SetInfo(rows)` init). `0.9.0` (2026-08-20, decision #28) converted the two fixed-count boards to inspector-authored: Daily's 7 cards and Spin's 8 wedges are pre-authored prefab instances wired into serialized lists, backgrounds per-instance, `SetInfo` binds instead of builds — layout is now pure prefab work. **Next: phase 5** (sample import dry-run into a scratch project + `_ASMR_Tower`, polish, `1.0.0`).
 
 ## Phase 4.5 — Panel-owned refactor (`0.8.0`, breaking) ✅ (2026-08-20)
 
@@ -14,7 +14,7 @@ Decisions #21–#27; documented like phase 2.5 because it reworks everything bef
 - **Grants:** `Row.OnClaimed` callback replaces the grant-carrying events (#22); every grant keeps the audit `Debug.Log`; a null callback LogErrors "was NOT granted". `SampleRewardGranter` became a plain `Grant(key, icon, amount)` the managers call.
 - **Hooks:** `RewardHooks` static with safe defaults + `SubsystemRegistration` reset (#23); `AdFlow` lost its ctor and gained a ~15s Busy timeout (#26).
 - **Naming:** `SetInfo(rows)` is the single init — `StartClass` retired repo-wide; `OpenPanel`/`ClosePanel` are the activation APIs; aliases deleted (#25). Panel members regrouped into the fixed `API`/`Logic`/`UI`/`Debug` regions, `API` first.
-- **Leniency (#24):** incomplete rows warn via `{Feature}Row.Warn`, structure throws, hooks never throw; `Day`/`Wedge`/`Slot` fields dropped (list position is the index); Daily's card-count/backgrounds mismatch downgraded to warn + wrap-around.
+- **Leniency (#24):** incomplete rows warn via `{Feature}Row.Warn`, structure throws, hooks never throw; `Day`/`Wedge`/`Slot` fields dropped (list position is the index); Daily's card-count/backgrounds mismatch downgraded to warn + wrap-around (wrap-around later replaced by per-instance authored backgrounds in `0.9.0`, decision #28).
 - **Lifecycle hardening:** Online's pause flush moved to `Application.focusChanged` (survives a deactivated panel; the `disableWhenHidden` checkbox can no longer break the no-suspended-playtime rule); countdown loops gate on `IsVisible()`; `TimeScheduler` callbacks wrapped in try/catch; every serialized UI ref null-guarded (#26).
 - **Sample (#27):** one scene `RewardSample.unity` (home HUD + all three panels), `Sample*` prefixes everywhere, knobs re-entered on the panel prefabs, `Assets/_RewardDemo` symlinks into `Samples~/RewardDemo` (no mirror step). Build settings point at the single scene.
 - **Gate:** met — compile clean, boundary grep clean, Play-mode grants verified for all three features, save payloads unchanged.
