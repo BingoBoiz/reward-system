@@ -443,6 +443,8 @@ MonoBehaviour:
   homeButtons: {fileID: 46189561}
   sfxSource: {fileID: 474857628}
   failIapPurchase: 0
+  adResult: 0
+  fakeIapPrice: 
 --- !u!82 &474857628
 AudioSource:
   m_ObjectHideFlags: 0

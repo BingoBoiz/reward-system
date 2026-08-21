@@ -38,25 +38,36 @@ namespace NabaGame.Reward
         public const string X2Placement = "OnlineReward_x2Speed";
         public const string X5Placement = "OnlineReward_x5Speed";
 
-        [ShowInInspector, ReadOnly, TableList, TabGroup("Tabs", "Rows")]
-        List<OnlineRewardRow> rows = new List<OnlineRewardRow>(); // dữ liệu do manager truyền vào
-
-        [SerializeField, TabGroup("Tabs", "Config")] float x2DurationSeconds = 120f; // giây hiệu lực tua x2
-        [SerializeField, TabGroup("Tabs", "Config")] float x5DurationSeconds = 120f; // giây hiệu lực tua x5
-        [SerializeField, TabGroup("Tabs", "Config")] int x5AdsRequired = 2; // số ads để kích hoạt x5
-
         [SerializeField, TabGroup("Tabs", "UI")] Button closeButton; // nút đóng panel
-        [SerializeField, TabGroup("Tabs", "UI")] Button openAllButton; // nút ads nhận toàn bộ
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] Button openAllAdsButton; // nút xem ads nhận toàn bộ
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllAdsCountLabel; // chữ đếm số ads đã xem
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] Button openAllIapButton; // nút mua IAP nhận toàn bộ
+        [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllIapPriceLabel; // chữ giá tiền trên nút
         [SerializeField, TabGroup("Tabs", "UI")] BoosterButton x2Booster; // cụm nút tua nhanh x2
         [SerializeField, TabGroup("Tabs", "UI")] BoosterButton x5Booster; // cụm nút tua nhanh x5
         [SerializeField, TabGroup("Tabs", "UI")] RectTransform gridContent; // chỗ chứa lưới ô thưởng
         [SerializeField, TabGroup("Tabs", "UI")] OnlineRewardCell cellTemplate; // ô mẫu để nhân bản
 
+        [SerializeField, TabGroup("Tabs", "Config")] float x2DurationSeconds = 120f; // giây hiệu lực tua x2
+        [SerializeField, TabGroup("Tabs", "Config")] int x2AdsRequired = 1; // số ads để kích hoạt x2
+        [SerializeField, TabGroup("Tabs", "Config")] float x5DurationSeconds = 120f; // giây hiệu lực tua x5
+        [SerializeField, TabGroup("Tabs", "Config")] int x5AdsRequired = 2; // số ads để kích hoạt x5
+        [SerializeField, TabGroup("Tabs", "Config")] bool openAllUseAds = true; // true xài ads, false xài IAP
+        [SerializeField, TabGroup("Tabs", "Config")] int openAllAdsRequired = 1; // số ads để nhận toàn bộ
+        [SerializeField, TabGroup("Tabs", "Config")] string openAllIapProductId = ""; // id gói IAP nhận toàn bộ
+        [SerializeField, TabGroup("Tabs", "Config")] string openAllIapPriceText = ""; // giá hiển thị trên nút IAP
+
+        [ShowInInspector, ReadOnly, TableList, TabGroup("Tabs", "Data")]
+        List<OnlineRewardRow> rows = new List<OnlineRewardRow>(); // dữ liệu do manager truyền vào
+
+        [ShowInInspector, TabGroup("Tabs", "Data"), InlineProperty]
+        public OnlineRewardProfile Profile { get; private set; }
+
         [SerializeField, TabGroup("Tabs", "FX")] float cellStaggerDelay = 0.03f; // trễ hiện lần lượt từng ô
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
         readonly List<OnlineRewardCell> cells = new List<OnlineRewardCell>();
-        readonly AdFlow adFlow = new AdFlow();
+        RewardFlow flow;
         readonly HashSet<int> claimedSlots = new HashSet<int>();
         double accumulatedSeconds;
         double baselineRealtime;
@@ -67,9 +78,6 @@ namespace NabaGame.Reward
         TimeScheduler.Handle speedUpHandle;
         bool built;
         CancellationTokenSource countdownCts;
-
-        [ShowInInspector, TabGroup("Tabs", "Profile"), HideLabel, InlineProperty]
-        public OnlineRewardProfile Profile { get; private set; }
 
         #region API
 
@@ -86,7 +94,9 @@ namespace NabaGame.Reward
             }
 
             rows = hostRows;
+            flow = new RewardFlow(this);
             OnlineRewardRow.Warn(rows, this);
+            WarnConfig();
 
             Profile = RewardProfileStore.Load<OnlineRewardProfile>(SaveKey, ProfileVersion);
             ResetBaseline();
@@ -101,6 +111,9 @@ namespace NabaGame.Reward
             BindUi();
             for (int i = 0; i < cells.Count && i < rows.Count; i++) cells[i].SetInfo(i, rows[i], OnCellClicked);
             RefreshAll();
+
+            // the initial state is a state change too: host listeners (red dots, HUD) start out empty
+            RaiseChanged();
         }
 
         public void OpenPanel()
@@ -127,6 +140,15 @@ namespace NabaGame.Reward
 
         public int SlotCount => rows.Count;
 
+        // trạng thái từng ô cho host query
+        public OnlineSlotState GetState(int slot)
+        {
+            if (Profile == null || slot < 0 || slot >= rows.Count) return OnlineSlotState.Locked;
+            if (claimedSlots.Contains(slot)) return OnlineSlotState.Claimed;
+            return CurrentPlaySeconds >= rows[slot].UnlockAfterSeconds ? OnlineSlotState.Claimable : OnlineSlotState.Locked;
+        }
+
+        // panel không vẽ chấm đỏ; host tự vẽ (xem SampleRedDot)
         // red-dot query
         public bool HasClaimable
         {
@@ -148,7 +170,9 @@ namespace NabaGame.Reward
             accumulatedSeconds = 0;
             speedUpX2EndMs = 0;
             speedUpX5EndMs = 0;
+            Profile.SpeedUpX2Ads = 0;
             Profile.SpeedUpX5Ads = 0;
+            Profile.OpenAllAdsWatched = 0;
             RewardProfileStore.Save(SaveKey, Profile);
             ResetBaseline();
             ScheduleSpeedUpExpiry();
@@ -160,12 +184,29 @@ namespace NabaGame.Reward
 
         #region Logic
 
-        double CurrentPlaySeconds => accumulatedSeconds + (Time.realtimeSinceStartupAsDouble - baselineRealtime) * activeMultiplier;
+        double CurrentPlaySeconds => accumulatedSeconds + (RewardClock.MonotonicSeconds - baselineRealtime) * activeMultiplier;
 
-        OnlineSlotState GetState(int slot)
+        bool OpenAllIapEnabled => !string.IsNullOrEmpty(openAllIapProductId);
+
+        // the store's localized price wins; the authored string is the fallback until the store is up
+        string IapPriceText
         {
-            if (claimedSlots.Contains(slot)) return OnlineSlotState.Claimed;
-            return CurrentPlaySeconds >= rows[slot].UnlockAfterSeconds ? OnlineSlotState.Claimable : OnlineSlotState.Locked;
+            get
+            {
+                string store = RewardHooks.GetIapPrice(openAllIapProductId);
+                return string.IsNullOrEmpty(store) ? openAllIapPriceText : store;
+            }
+        }
+
+        int UnclaimedCount => rows.Count - claimedSlots.Count;
+
+        void WarnConfig()
+        {
+            if (x2AdsRequired <= 0) Debug.LogWarning($"[OnlineRewardPanel] x2AdsRequired is {x2AdsRequired}, X2 SPEED stays off", this);
+            if (x5AdsRequired <= 0) Debug.LogWarning($"[OnlineRewardPanel] x5AdsRequired is {x5AdsRequired}, X5 SPEED stays off", this);
+            if (openAllUseAds && openAllAdsRequired <= 0) Debug.LogWarning($"[OnlineRewardPanel] openAllUseAds is on but openAllAdsRequired is {openAllAdsRequired}, OPEN ALL stays off", this);
+            if (!openAllUseAds && !OpenAllIapEnabled) Debug.LogWarning("[OnlineRewardPanel] openAllUseAds is off but openAllIapProductId is empty, OPEN ALL stays off", this);
+            if (!openAllUseAds && OpenAllIapEnabled && string.IsNullOrEmpty(openAllIapPriceText)) Debug.LogWarning("[OnlineRewardPanel] openAllIapProductId is set but openAllIapPriceText is empty", this);
         }
 
         float GetRemainingSeconds(int slot) => Mathf.Max(0f, (float)(rows[slot].UnlockAfterSeconds - CurrentPlaySeconds));
@@ -178,7 +219,7 @@ namespace NabaGame.Reward
 
         void ResetBaseline()
         {
-            baselineRealtime = Time.realtimeSinceStartupAsDouble;
+            baselineRealtime = RewardClock.MonotonicSeconds;
             activeMultiplier = SpeedMultiplier;
         }
 
@@ -213,7 +254,7 @@ namespace NabaGame.Reward
 
             if (best == double.MaxValue) return;
             // playtime runs faster than the wall clock while a speed-up is active
-            unlockHandle = TimeScheduler.Schedule(TimeScheduler.NowMs + (long)(best / activeMultiplier * 1000), OnUnlockDeadline);
+            unlockHandle = TimeScheduler.Schedule(RewardClock.NowMs + (long)(best / activeMultiplier * 1000), OnUnlockDeadline);
         }
 
         void OnUnlockDeadline()
@@ -233,13 +274,20 @@ namespace NabaGame.Reward
             }
         }
 
-        bool IsSpeedUpActive(int multiplier) => EndMs(multiplier) > TimeScheduler.NowMs;
+        bool IsSpeedUpActive(int multiplier) => EndMs(multiplier) > RewardClock.NowMs;
 
-        float GetSpeedUpRemaining(int multiplier) => Mathf.Max(0f, (float)TimeScheduler.SecondsUntil(EndMs(multiplier)));
+        float GetSpeedUpRemaining(int multiplier) => Mathf.Max(0f, (float)RewardClock.SecondsUntil(EndMs(multiplier)));
 
-        int GetSpeedUpAds(int multiplier) => multiplier == SpeedUpX5 ? Profile.SpeedUpX5Ads : 0;
+        int GetSpeedUpAds(int multiplier) => multiplier == SpeedUpX5 ? Profile.SpeedUpX5Ads : Profile.SpeedUpX2Ads;
 
-        int GetSpeedUpAdsRequired(int multiplier) => multiplier == SpeedUpX5 ? x5AdsRequired : 1;
+        int GetSpeedUpAdsRequired(int multiplier) => multiplier == SpeedUpX5 ? x5AdsRequired : x2AdsRequired;
+
+        void SetSpeedUpAds(int multiplier, int value)
+        {
+            if (multiplier == SpeedUpX5) Profile.SpeedUpX5Ads = value;
+            else Profile.SpeedUpX2Ads = value;
+            RewardProfileStore.Save(SaveKey, Profile);
+        }
 
         long EndMs(int multiplier)
         {
@@ -253,7 +301,7 @@ namespace NabaGame.Reward
 
         bool RequestSpeedUp(int multiplier)
         {
-            if (IsSpeedUpActive(multiplier)) return false;
+            if (IsSpeedUpActive(multiplier) || GetSpeedUpAdsRequired(multiplier) <= 0) return false;
 
             string placement;
             switch (multiplier)
@@ -263,17 +311,16 @@ namespace NabaGame.Reward
                 default: throw new ArgumentOutOfRangeException(nameof(multiplier), multiplier, "OnlineRewardPanel: unknown speed-up multiplier");
             }
 
-            return adFlow.Show(placement, () => AddSpeedUpAd(multiplier));
+            return flow.ShowAd(placement, () => AddSpeedUpAd(multiplier), OnMonetizeFailed);
         }
 
         void AddSpeedUpAd(int multiplier)
         {
             if (IsSpeedUpActive(multiplier)) return;
 
-            if (multiplier == SpeedUpX5 && Profile.SpeedUpX5Ads + 1 < GetSpeedUpAdsRequired(multiplier))
+            if (GetSpeedUpAds(multiplier) + 1 < GetSpeedUpAdsRequired(multiplier))
             {
-                Profile.SpeedUpX5Ads++;
-                RewardProfileStore.Save(SaveKey, Profile);
+                SetSpeedUpAds(multiplier, GetSpeedUpAds(multiplier) + 1);
                 RaiseChanged();
                 return;
             }
@@ -287,17 +334,10 @@ namespace NabaGame.Reward
             FlushPlaytime();
 
             float duration = multiplier == SpeedUpX5 ? x5DurationSeconds : x2DurationSeconds;
-            long endMs = TimeScheduler.NowMs + (long)(duration * 1000);
-            if (multiplier == SpeedUpX5)
-            {
-                speedUpX5EndMs = endMs;
-                Profile.SpeedUpX5Ads = 0;
-                RewardProfileStore.Save(SaveKey, Profile);
-            }
-            else
-            {
-                speedUpX2EndMs = endMs;
-            }
+            long endMs = RewardClock.NowMs + (long)(duration * 1000);
+            if (multiplier == SpeedUpX5) speedUpX5EndMs = endMs;
+            else speedUpX2EndMs = endMs;
+            SetSpeedUpAds(multiplier, 0);
 
             ResetBaseline();
             ScheduleSpeedUpExpiry();
@@ -310,7 +350,7 @@ namespace NabaGame.Reward
         {
             TimeScheduler.Cancel(ref speedUpHandle);
 
-            long now = TimeScheduler.NowMs;
+            long now = RewardClock.NowMs;
             long best = long.MaxValue;
             if (speedUpX2EndMs > now) best = speedUpX2EndMs;
             if (speedUpX5EndMs > now && speedUpX5EndMs < best) best = speedUpX5EndMs;
@@ -339,14 +379,43 @@ namespace NabaGame.Reward
             return true;
         }
 
-        bool RequestOpenAll()
+        bool RequestOpenAllAds()
         {
-            if (claimedSlots.Count >= rows.Count) return false;
-            return adFlow.Show(OpenAllPlacement, OpenAll);
+            if (!openAllUseAds || openAllAdsRequired <= 0 || UnclaimedCount == 0) return false;
+            return flow.ShowAd(OpenAllPlacement, OnOpenAllAdWatched, OnMonetizeFailed);
+        }
+
+        void OnOpenAllAdWatched()
+        {
+            if (Profile.OpenAllAdsWatched + 1 < openAllAdsRequired)
+            {
+                Profile.OpenAllAdsWatched++;
+                RewardProfileStore.Save(SaveKey, Profile);
+                RaiseChanged();
+                return;
+            }
+
+            OpenAll();
+        }
+
+        bool RequestOpenAllIap()
+        {
+            if (openAllUseAds || !OpenAllIapEnabled || UnclaimedCount == 0) return false;
+            return flow.Purchase(openAllIapProductId, OpenAll, OnMonetizeFailed);
+        }
+
+        void OnMonetizeFailed(string message)
+        {
+            Debug.Log($"[OnlineRewardPanel] monetized action did not go through: {message}");
+            RewardHooks.ShowMessage(message);
+            RefreshAll();
         }
 
         void OpenAll()
         {
+            Profile.OpenAllAdsWatched = 0;
+            RewardProfileStore.Save(SaveKey, Profile);
+
             bool first = true;
             for (int i = 0; i < rows.Count; i++)
             {
@@ -385,7 +454,12 @@ namespace NabaGame.Reward
 
         void RaiseChanged()
         {
-            if (IsVisible()) RefreshAll();
+            if (IsVisible())
+            {
+                RefreshAll();
+                // a state change can move the multiplier or the sub-second phase, so the tick cadence restarts from this instant
+                StartCountdown();
+            }
             EventManager.Instance.Raise(new OnlineRewardChangedEvent());
         }
 
@@ -429,7 +503,8 @@ namespace NabaGame.Reward
         void BindUi()
         {
             RewardUi.Bind(closeButton, ClosePanel);
-            RewardUi.Bind(openAllButton, OnOpenAllClicked);
+            RewardUi.Bind(openAllAdsButton, OnOpenAllAds);
+            RewardUi.Bind(openAllIapButton, OnOpenAllIap);
             RewardUi.Bind(x2Booster.button, OnX2Clicked);
             RewardUi.Bind(x5Booster.button, OnX5Clicked);
         }
@@ -438,7 +513,27 @@ namespace NabaGame.Reward
         {
             if (Profile == null) return;
             for (int i = 0; i < cells.Count && i < rows.Count; i++) cells[i].Refresh(GetState(i), GetRemainingSeconds(i));
-            if (openAllButton) openAllButton.interactable = !adFlow.Busy;
+            bool adsOn = openAllUseAds && openAllAdsRequired > 0 && UnclaimedCount > 0;
+            bool iapOn = !openAllUseAds && OpenAllIapEnabled && UnclaimedCount > 0;
+
+            bool busy = flow != null && flow.Busy;
+
+            if (openAllAdsButton)
+            {
+                openAllAdsButton.gameObject.SetActive(adsOn);
+                openAllAdsButton.interactable = !busy;
+            }
+
+            if (adsOn && openAllAdsCountLabel) openAllAdsCountLabel.text = $"{Profile.OpenAllAdsWatched}/{openAllAdsRequired}";
+
+            if (openAllIapButton)
+            {
+                openAllIapButton.gameObject.SetActive(iapOn);
+                openAllIapButton.interactable = !busy;
+            }
+
+            if (iapOn && openAllIapPriceLabel) openAllIapPriceLabel.text = IapPriceText;
+
             RefreshBooster(x2Booster, SpeedUpX2);
             RefreshBooster(x5Booster, SpeedUpX5);
         }
@@ -446,7 +541,7 @@ namespace NabaGame.Reward
         void RefreshBooster(BoosterButton booster, int multiplier)
         {
             bool active = IsSpeedUpActive(multiplier);
-            if (booster.button) booster.button.interactable = !active && !adFlow.Busy;
+            if (booster.button) booster.button.interactable = !active && (flow == null || !flow.Busy);
 
             if (active)
             {
@@ -478,11 +573,21 @@ namespace NabaGame.Reward
             // Hide() can arrive from outside ClosePanel, so visibility is the loop condition
             while (IsVisible())
             {
-                await UniTask.Delay(1000, true, cancellationToken: token);
+                await UniTask.Delay(NextTickMs(), DelayType.Realtime, cancellationToken: token);
                 for (int i = 0; i < cells.Count && i < rows.Count; i++) cells[i].RefreshTimer(GetRemainingSeconds(i));
                 RefreshBooster(x2Booster, SpeedUpX2);
                 RefreshBooster(x5Booster, SpeedUpX5);
             }
+        }
+
+        // cells tick at playtime rate, boosters at wall rate: wake at whichever digit changes first
+        int NextTickMs()
+        {
+            // every unlock is an int, so all cell timers share one sub-second phase; row 0 stands in for all of them
+            int best = RewardClock.MsUntilNextTick(rows[0].UnlockAfterSeconds - CurrentPlaySeconds, activeMultiplier);
+            if (IsSpeedUpActive(SpeedUpX2)) best = Math.Min(best, RewardClock.MsUntilNextTick(GetSpeedUpRemaining(SpeedUpX2)));
+            if (IsSpeedUpActive(SpeedUpX5)) best = Math.Min(best, RewardClock.MsUntilNextTick(GetSpeedUpRemaining(SpeedUpX5)));
+            return best;
         }
 
         void StopCountdown()
@@ -498,10 +603,17 @@ namespace NabaGame.Reward
             Claim(slot);
         }
 
-        void OnOpenAllClicked()
+        void OnOpenAllAds()
         {
             if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
-            RequestOpenAll();
+            RequestOpenAllAds();
+            RefreshAll();
+        }
+
+        void OnOpenAllIap()
+        {
+            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            RequestOpenAllIap();
             RefreshAll();
         }
 
@@ -537,8 +649,11 @@ namespace NabaGame.Reward
             ScheduleNextUnlock();
         }
 
-        [ButtonGroup("Tabs/Debug/Claim"), Button("Open All"), DisableInEditorMode]
-        void PreviewOpenAll() => RequestOpenAll();
+        [ButtonGroup("Tabs/Debug/Claim"), Button("Open All Ads"), DisableInEditorMode]
+        void PreviewOpenAllAds() => RequestOpenAllAds();
+
+        [ButtonGroup("Tabs/Debug/Claim"), Button("Open All IAP"), DisableInEditorMode]
+        void PreviewOpenAllIap() => RequestOpenAllIap();
 
         [ButtonGroup("Tabs/Debug/Claim"), Button("Clear Speed-Ups"), DisableInEditorMode]
         void PreviewClearSpeedUps()

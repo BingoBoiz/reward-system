@@ -1,4 +1,5 @@
 using System;
+using Cysharp.Threading.Tasks;
 using NabaGame.Reward;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -9,6 +10,14 @@ namespace NabaGame.Reward.Sample
     // everything runs from Start() — panels apply startHidden in their own Start(), so nothing opens here
     public class SampleRewardBoot : MonoBehaviour
     {
+        // Swallow = the shipped SDK's reward-interval throttle: neither callback ever fires
+        public enum AdResult
+        {
+            Reward,
+            Skip,
+            Swallow
+        }
+
         [SerializeField] SampleDailyRewardManager dailyRewardManager;
         [SerializeField] SampleLuckySpinManager luckySpinManager;
         [SerializeField] SampleOnlineRewardManager onlineRewardManager;
@@ -16,6 +25,8 @@ namespace NabaGame.Reward.Sample
         [SerializeField] SampleHomeButtons homeButtons;
         [SerializeField] AudioSource sfxSource;
         [SerializeField] bool failIapPurchase;
+        [SerializeField] AdResult adResult = AdResult.Reward;
+        [SerializeField] string fakeIapPrice = "";
 
         void OnValidate()
         {
@@ -34,8 +45,10 @@ namespace NabaGame.Reward.Sample
         {
             // hooks first: panels may play sfx or show ads from the very first refresh
             RewardHooks.PlaySfx = PlaySfx;
-            RewardHooks.ShowRewardedAd = ShowRewardedAd;
+            RewardHooks.ShowRewardedAd = (placement, onReward, onSkip) => ShowRewardedAd(placement, onReward, onSkip).Forget();
             RewardHooks.PurchaseIap = PurchaseIap;
+            RewardHooks.GetIapPrice = GetIapPrice;
+            RewardHooks.ShowMessage = ShowMessage;
 
             SampleUIRoot.Instance.SetInfo();
             dailyRewardManager.SetInfo();
@@ -52,10 +65,21 @@ namespace NabaGame.Reward.Sample
             if (clip && sfxSource) sfxSource.PlayOneShot(clip);
         }
 
-        void ShowRewardedAd(string placement, Action onReward, Action onSkip)
+        // async on purpose: the shipped SDK never answers on the same frame
+        async UniTaskVoid ShowRewardedAd(string placement, Action onReward, Action onSkip)
         {
-            Debug.Log($"[SampleRewardBoot] no ads SDK in the sample, '{placement}' rewards immediately");
-            onReward();
+            Debug.Log($"[SampleRewardBoot] fake ad '{placement}' -> {adResult}");
+            await UniTask.Delay(TimeSpan.FromSeconds(0.5f), DelayType.Realtime);
+
+            if (adResult == AdResult.Reward) onReward();
+            else if (adResult == AdResult.Skip) onSkip();
+        }
+
+        string GetIapPrice(string productId) => fakeIapPrice;
+
+        void ShowMessage(string message)
+        {
+            Debug.Log($"<color=orange>[SampleRewardBoot] toast: {message}</color>");
         }
 
         void PurchaseIap(string productId, Action<bool> callback)

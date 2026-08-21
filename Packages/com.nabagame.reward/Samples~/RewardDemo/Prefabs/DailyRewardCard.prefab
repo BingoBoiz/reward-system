@@ -161,6 +161,7 @@ GameObject:
   - component: {fileID: 306566773137699530}
   - component: {fileID: 8501775707044907273}
   - component: {fileID: 2242669883460544619}
+  - component: {fileID: 8286858081836077797}
   m_Layer: 0
   m_Name: Badge
   m_TagString: Untagged
@@ -225,6 +226,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &8286858081836077797
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3042318235889112678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db03d42f66062404a8eb41137c7495e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  key: 4
+  icon: {fileID: 2242669883460544619}
+  animate: 1
+  swingAngle: 20
+  swingScale: 1.15
+  windDuration: 0.09
+  settleDuration: 0.5
+  restDuration: 1.25
 --- !u!1 &6505292428540376124
 GameObject:
   m_ObjectHideFlags: 0
@@ -377,12 +398,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   button: {fileID: 5238032161706279314}
-  background: {fileID: 4965475622221148179}
   icon: {fileID: 6021602228844767968}
   claimLabel: {fileID: 8229775053491605257}
   amountLabel: {fileID: 8413598143297707198}
   claimedTick: {fileID: 56451151848962066}
-  badge: {fileID: 3042318235889112678}
   canvasGroup: {fileID: 3406337908743095305}
   lockedAlpha: 1
 --- !u!1 &7144303496427518164

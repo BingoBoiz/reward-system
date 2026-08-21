@@ -10,7 +10,7 @@ real game copies.
 1. Import this sample through the Package Manager. (Upgrading from ≤0.7.0: delete the old
    `Assets/Samples/NabaGame Reward/<old>/` folder first — sample types were renamed.)
 2. Open `Scenes/RewardSample.unity` and press Play. The home buttons on the left (Daily / Spin / Playtime)
-   open each panel and carry red-dot badges driven by package events + panel queries.
+   open each panel; their red dots are `SampleRedDot` components that drive themselves off the package events + panel queries.
 3. The currency HUD shows every grant landing, and every grant also opens the reward-received ceremony
    popup (dim, burst, CONGRATULATION, card stagger — tap to continue). Spin: the first spin is free, then
    the button switches to the ad variant with a `Free spin in mm:ss` countdown (the sample "ad" rewards
@@ -20,7 +20,7 @@ real game copies.
 
 | Folder | Contents |
 |---|---|
-| `Scripts/` | `SampleRewardBoot` (composition root: assigns the three `RewardHooks` statics, then calls every `SetInfo` from `Start()`), `SampleDailyRewardManager` / `SampleLuckySpinManager` / `SampleOnlineRewardManager` (the dev-owned managers: `[TableList] rows` + `OnClaimed` → `SampleRewardGranter.Grant`), `SampleRewardGranter` (maps `Row.Key` onto PlayerPrefs counters, raises `SampleItemGrantedEvent`), `SampleUIRoot` (UI composition root, auto-finds panels), `SampleCurrencyHud`, `SampleHomeButtons` (red dots over the change events + panel queries), `SampleItemReceivedPanel` + `SampleItemReceivedCell` + `SampleItemReceivedBurstFx` (ceremony popup over `SampleItemGrantedEvent`, same-frame batching, key stacking) |
+| `Scripts/` | `SampleRewardBoot` (composition root: assigns the three `RewardHooks` statics, then calls every `SetInfo` from `Start()`), `SampleDailyRewardManager` / `SampleLuckySpinManager` / `SampleOnlineRewardManager` (the dev-owned managers: `[TableList] rows` + `OnClaimed` → `SampleRewardGranter.Grant`), `SampleRewardGranter` (maps `Row.Key` onto PlayerPrefs counters, raises `SampleItemGrantedEvent`), `SampleUIRoot` (UI composition root, auto-finds panels), `SampleCurrencyHud`, `SampleHomeButtons` (three buttons, nothing else), `SampleRedDot` (self-driven red dot: subscribes to the change events, evaluates a `SampleRedDotKey` against the panel queries, runs the bell-ring tween; the package draws no badge), `SampleItemReceivedPanel` + `SampleItemReceivedCell` + `SampleItemReceivedBurstFx` (ceremony popup over `SampleItemGrantedEvent`, same-frame batching, key stacking) |
 | `Prefabs/` | `SampleUIRoot` (root Canvas, 2400x1080 ScaleWithScreenSize match 0.5, HUD + home buttons + all panels), `DailyRewardPanel` + 7 authored `DailyRewardCard` instances (backgrounds per-card, wired into `cards`), `LuckySpinPanel` + 8 authored `LuckySpinWedge` instances (wired into `wedges`), `OnlineRewardPanel` + `OnlineRewardCell` template, `SampleOnlineRewardManager` (carries the 18 sample rows), `SampleItemReceivedPanel` (sorting 250) + `SampleItemReceivedCell` template |
 | `Art/`, `Fonts/` | ASMR-Tower sprites and the PassionOne TMP font the prefabs reference; `Art/ItemReceived/` holds the ceremony fx sprites |
 
@@ -28,7 +28,8 @@ The package owns no data assets: the reward rows live on the `Sample*` managers 
 — 7 rows; `SampleLuckySpinManager.rows` — 8 weighted wedges; `SampleOnlineRewardManager.rows` — 18 rows on
 the manager prefab, one unlock per minute). Each row carries its own `Key`, `Sprite Icon`, `Amount`, and
 optional `ClaimSfx`. Feature knobs live on the **panel prefabs**: Daily's Open All config (`openAllAdsRequired`
-3, IAP product + `$4.99`), Spin's 30-min cooldown and spin timing, Online's x2/x5 durations and `x5AdsRequired`.
+3, IAP product + `$4.99`), Spin's 30-min cooldown and spin timing, Online's x2/x5 durations, `x2AdsRequired` 1 /
+`x5AdsRequired` 2 and its own Open All config (`openAllAdsRequired` 3, IAP product + `$4.99`).
 
 ## Adapting it to your game
 

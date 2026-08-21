@@ -13,7 +13,6 @@ namespace NabaGame.Reward
         [SerializeField] TMP_Text claimLabel;
         [SerializeField] TMP_Text amountLabel;
         [SerializeField] GameObject claimedTick;
-        [SerializeField] GameObject badge;
         [SerializeField] CanvasGroup canvasGroup;
         [SerializeField] float lockedAlpha = 0.75f;
 
@@ -51,7 +50,6 @@ namespace NabaGame.Reward
 
             if (claimedTick) claimedTick.SetActive(claimed);
             if (claimLabel) claimLabel.gameObject.SetActive(!claimed);
-            if (badge) badge.SetActive(claimable);
             if (icon) icon.gameObject.SetActive(icon.sprite && (claimed || !hideIconUntilClaim));
             if (button) button.interactable = claimable;
             if (canvasGroup) canvasGroup.alpha = state == DailyState.Locked ? lockedAlpha : 1f;

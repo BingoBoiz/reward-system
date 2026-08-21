@@ -2,7 +2,7 @@
 
 How to install `com.nabagame.reward` into a NabaGame host project, from zero to a working feature. The demo host in this repo (`Assets/_RewardDemo/`, a symlink view of `Samples~/RewardDemo/`) is the living reference for every step.
 
-The whole contract in one paragraph: **drag one panel prefab, write one tiny manager, assign three static hooks at boot.** The panel owns everything (save, timers, ads, IAP, rules); your manager owns the data (`rows`) and the grant reaction (`OnClaimed`). Read a panel's `#region API` — that is the entire surface you need.
+The whole contract in one paragraph: **drag one panel prefab, write one tiny manager, assign five static hooks at boot.** The panel owns everything (save, timers, ads, IAP, rules); your manager owns the data (`rows`) and the grant reaction (`OnClaimed`). Read a panel's `#region API` — that is the entire surface you need.
 
 ## 1. Prerequisites
 
@@ -83,21 +83,34 @@ public static void Grant(string key, Sprite icon, long amount)
 
 The ceremony popup is host-side by design: the sample's granter raises `SampleItemGrantedEvent` and `SampleItemReceivedPanel` (sorting 250) batches same-frame grants, stacks duplicates by key, and plays the ceremony. The package never opens it.
 
-## 6. Assign the hooks — three statics, once, at boot
+## 6. Assign the hooks — five statics, once, at boot
 
 ```csharp
 // first lines of your boot Start(), before any panel SetInfo
 RewardHooks.PlaySfx        = clip => { if (clip) SoundManager.Instance.sfxSource.PlayOneShot(clip); };
 RewardHooks.ShowRewardedAd = (placement, onReward, onSkip) => AdManager.Instance.ShowRewardedVideo(onReward, onSkip, placement);
-RewardHooks.PurchaseIap    = (productId, result) => IAPManager.Instance.InitiatePurchase(productId, result);
+RewardHooks.PurchaseIap    = (productId, result) => IAPManager.Instance.PurchaseProduct(productId, _ => result(true), _ => result(false));
+RewardHooks.GetIapPrice    = IAPManager.Instance.GetProductPrice;
+RewardHooks.ShowMessage    = message => ToastManager.Instance.Show(message);   // your own toast/popup
 ```
 
-Unset hooks never throw — the defaults `Debug.LogError` naming the hook and then reward/succeed immediately, so a freshly dragged prefab runs before you wire anything. `PurchaseIap` product ids (e.g. `DailyRewardPanel.openAllIapProductId`) must be registered in your IAP catalog; the displayed price is the panel's `openAllIapPriceText` string — the package never queries the store.
+Unset hooks never throw — the defaults `Debug.LogError` naming the hook and then reward/succeed immediately, so a freshly dragged prefab runs before you wire anything.
+
+**Four things about the shipped `com.bmh.ads` + Unity IAP stack that will bite you if you skip them:**
+
+1. **`ShowRewardedVideo` ignores its `skip` argument and often answers with nothing at all.** It returns in silence when the reward is interval-throttled (`rewardAdsIntervalTime`, 10s by default — so the *second* ad of a multi-ad OPEN ALL flow hits it every time), when nothing is loaded, when the user skips, and when display fails. Only a granted reward calls back. The package detects all of that itself (ARCHITECTURE §8) and tells the player through `ShowMessage`. **Do not wrap the hook in your own timeout or readiness check** — you will fight `RewardFlow` and double-report.
+2. **Call `AdManager.Instance.ResetLastShowOpenAds()` right before `InitiatePurchase`.** `AdManager.OnApplicationPause` shows an App Open ad whenever the app regains focus, and the store sheet closing *is* a focus regain — without this the player comes back from paying into a fullscreen ad. The reference `IAPManager.PurchaseProduct`/`PurchaseID` already does it; if you wrote your own, add it.
+3. **"Remove ads" must not disable rewarded.** Use `AdManager.OnFake(true, true, true, false)` — banner/interstitial/app-open faked, rewarded still live. Kill rewarded too and every ad button in this package dies. `OnFake` is runtime-only state, so re-apply it from your saved flag on **every** boot.
+4. **Push your interstitial clock forward after each rewarded reward.** A player who just watched a rewarded ad should not be handed an interstitial two seconds later. The package owns no interstitial — this one is on you.
+
+`PurchaseIap` product ids (e.g. `DailyRewardPanel.openAllIapProductId`) must be registered in your IAP catalog. Price display: `GetIapPrice` is read on every refresh and the panel's `openAllIapPriceText` is only the fallback for before the store finishes initializing — return `""` from the hook to keep the authored string.
+
+`ShowMessage` receives one of `RewardHooks.AdNotAvailableMessage` / `AdSkippedMessage` / `PurchaseFailedMessage`. Compare against those constants to show your own localized copy instead of the English default.
 
 ## 7. Wire the panel
 
 1. Drop the feature panel prefab (e.g. `DailyRewardPanel` from the sample) under your UI root; add a field for it on your `UIManagerSingleton` (or use the sample's `SampleUIRoot`, which auto-finds panels in `OnValidate`).
-2. Tune the panel's Inspector knobs if needed — they live on the panel prefab: Daily `openAllUseAds` (on = ads button, off = IAP button)/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x5AdsRequired`.
+2. Tune the panel's Inspector knobs if needed — they live on the panel prefab: Daily `openAllUseAds` (on = ads button, off = IAP button)/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x2AdsRequired`/`x5AdsRequired` plus the same Open All set as Daily (`openAllUseAds`/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`).
 3. Call your manager's `SetInfo()` **from `Start()` at boot** (see `SampleRewardBoot`) — never from `Awake()` (`UIPanel` applies `startHidden` in its own `Start()`), and never open a panel in the same frame it was initialized.
    - **Online Reward must be initialized at boot, not lazily on first open** — playtime accrues from `SetInfo`; a lazy init means the grid never unlocks while the panel is closed.
 4. Open it from any button or stub with `OpenPanel()` / close with `ClosePanel()`:
@@ -111,14 +124,25 @@ Placement strings are `public const` in each panel's `#region API` (`OnlineRewar
 
 ## 9. Red dots (optional)
 
-Subscribe to the package change events and evaluate from the panel queries:
+The package draws no badge — not on the home buttons, not on a Daily card, not on an Online cell. Every dot is yours.
+
+The sample ships the whole thing as one component: put `SampleRedDot` on the dot's `Image` and pick a `SampleRedDotKey`. It subscribes to the change events itself, evaluates the panel query, and runs the bell-ring tween. Nothing calls it, nothing references it.
+
+| key | evaluates |
+|---|---|
+| `DailyReward` | `dailyRewardPanel.ClaimableCount > 0` |
+| `LuckySpin` | `luckySpinPanel.FreeSpinReady && !IsSpinning` |
+| `OnlineReward` | `onlineRewardPanel.HasClaimable` |
+| `DailyRewardCard` | `dailyRewardPanel.GetState(card.Day) == DailyState.Claimable` (reads its own `DailyRewardCard` parent) |
+| `OnlineRewardCell` | `onlineRewardPanel.GetState(cell.Slot) == OnlineSlotState.Claimable` (reads its own `OnlineRewardCell` parent) |
+| `None` | nothing — you call `SetOn(bool)`, for dots on your own features |
+
+Rolling your own instead is three lines:
 
 ```csharp
-EventManager.Instance.AddListener<DailyRewardChangedEvent>(_ => Invalidate());
+EventManager.Instance.AddListener<DailyRewardChangedEvent>(OnDailyChanged);
 // evaluators: dailyRewardPanel.ClaimableCount > 0, luckySpinPanel.FreeSpinReady, onlineRewardPanel.HasClaimable
 ```
-
-`SampleHomeButtons` is the complete recipe.
 
 ## 10. Installing into ASMR_Tower specifically
 

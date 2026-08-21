@@ -36,14 +36,13 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllAdsCountLabel; // chữ đếm số ads đã xem
         [SerializeField, FoldoutGroup("Tabs/UI/Open All")] Button openAllIapButton; // nút mua IAP mở toàn bộ
         [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllIapPriceLabel; // chữ giá tiền trên nút
-        [SerializeField, FoldoutGroup("Tabs/UI/Cards")] List<DailyRewardCard> cards = new List<DailyRewardCard>(); // thẻ ngày xếp sẵn theo thứ tự
+        [SerializeField, FoldoutGroup("Tabs/UI/Cards")] List<DailyRewardCard> cards = new (); // thẻ ngày xếp sẵn theo thứ tự
 
         [SerializeField, TabGroup("Tabs", "FX")] float cardStaggerDelay = 0.04f; // trễ hiện lần lượt từng thẻ
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
-        readonly AdFlow adFlow = new AdFlow();
+        RewardFlow flow;
         TimeScheduler.Handle rolloverHandle;
-        bool iapBusy;
 
         [ShowInInspector, TabGroup("Tabs", "Profile"), HideLabel, InlineProperty]
         public DailyRewardProfile Profile { get; private set; }
@@ -55,6 +54,7 @@ namespace NabaGame.Reward
         {
             if (hostRows == null || hostRows.Count == 0) throw new InvalidOperationException("DailyRewardPanel: rows is null or empty");
             rows = hostRows;
+            flow = new RewardFlow(this);
             DailyRewardRow.Warn(rows, this);
             WarnConfig();
 
@@ -66,11 +66,14 @@ namespace NabaGame.Reward
                 RewardProfileStore.Save(SaveKey, Profile);
             }
 
-            ResetWeekIfElapsed();
             ScheduleRollover();
+            ResetWeekIfElapsed();
             BindCards();
             BindUi();
             RefreshAll();
+
+            // the initial state is a state change too: host listeners (red dots, HUD) start out empty
+            RaiseChanged();
         }
 
         public void OpenPanel()
@@ -97,10 +100,20 @@ namespace NabaGame.Reward
 
         public int StreakDay => Profile == null ? 0 : Profile.StreakDay;
 
+        // panel không vẽ chấm đỏ; host tự vẽ (xem SampleRedDot)
         // red-dot query: 1 while today's card is still unclaimed
-        public int ClaimableCount => Profile != null && Profile.StreakDay < DayCount && Profile.LastClaimDateUtc != TodayUtc ? 1 : 0;
+        public int ClaimableCount => Profile != null && Profile.StreakDay < DayCount && Profile.LastClaimDateUtc != RewardClock.TodayUtc ? 1 : 0;
 
         public int UnopenedCount => DayCount - StreakDay;
+
+        // trạng thái từng ngày cho host query
+        public DailyState GetState(int day)
+        {
+            if (Profile == null || day < 0 || day >= rows.Count) return DailyState.Locked;
+            if (day < Profile.StreakDay) return DailyState.Claimed;
+            if (day == Profile.StreakDay && ClaimableCount > 0) return DailyState.Claimable;
+            return DailyState.Locked;
+        }
 
         public void ResetProfile()
         {
@@ -113,15 +126,16 @@ namespace NabaGame.Reward
 
         #region Logic
 
-        static string TodayUtc => DateTime.UtcNow.ToString("yyyy-MM-dd");
-
         bool OpenAllIapEnabled => !string.IsNullOrEmpty(openAllIapProductId);
 
-        DailyState GetState(int day)
+        // the store's localized price wins; the authored string is the fallback until the store is up
+        string IapPriceText
         {
-            if (day < Profile.StreakDay) return DailyState.Claimed;
-            if (day == Profile.StreakDay && ClaimableCount > 0) return DailyState.Claimable;
-            return DailyState.Locked;
+            get
+            {
+                string store = RewardHooks.GetIapPrice(openAllIapProductId);
+                return string.IsNullOrEmpty(store) ? openAllIapPriceText : store;
+            }
         }
 
         void WarnConfig()
@@ -134,21 +148,20 @@ namespace NabaGame.Reward
         void ScheduleRollover()
         {
             TimeScheduler.Cancel(ref rolloverHandle);
-            long nextMidnight = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(1), TimeSpan.Zero).ToUnixTimeMilliseconds();
-            rolloverHandle = TimeScheduler.Schedule(nextMidnight, OnRollover);
+            rolloverHandle = TimeScheduler.Schedule(RewardClock.NextUtcMidnightMs, OnRollover);
         }
 
         void OnRollover()
         {
             rolloverHandle = null;
-            ResetWeekIfElapsed();
             ScheduleRollover();
+            ResetWeekIfElapsed();
             RaiseChanged();
         }
 
         void ResetWeekIfElapsed()
         {
-            if (Profile.StreakDay != DayCount || Profile.LastClaimDateUtc == TodayUtc) return;
+            if (Profile.StreakDay != DayCount || Profile.LastClaimDateUtc == RewardClock.TodayUtc) return;
             Profile.StreakDay = 0;
             RewardProfileStore.Save(SaveKey, Profile);
         }
@@ -157,7 +170,7 @@ namespace NabaGame.Reward
         {
             DailyRewardRow row = rows[day];
             Profile.StreakDay = day + 1;
-            Profile.LastClaimDateUtc = TodayUtc;
+            Profile.LastClaimDateUtc = RewardClock.TodayUtc;
             RewardProfileStore.Save(SaveKey, Profile);
 
             if (withSfx && row.ClaimSfx) RewardHooks.PlaySfx(row.ClaimSfx);
@@ -182,7 +195,7 @@ namespace NabaGame.Reward
         bool RequestOpenAllAds()
         {
             if (!openAllUseAds || openAllAdsRequired <= 0 || UnopenedCount == 0) return false;
-            return adFlow.Show(OpenAllPlacement, OnOpenAllAdWatched);
+            return flow.ShowAd(OpenAllPlacement, OnOpenAllAdWatched, OnMonetizeFailed);
         }
 
         void OnOpenAllAdWatched()
@@ -200,22 +213,15 @@ namespace NabaGame.Reward
 
         bool RequestOpenAllIap()
         {
-            if (openAllUseAds || !OpenAllIapEnabled || UnopenedCount == 0 || iapBusy) return false;
-            iapBusy = true;
-            RewardHooks.PurchaseIap(openAllIapProductId, OnOpenAllPurchase);
-            return true;
+            if (openAllUseAds || !OpenAllIapEnabled || UnopenedCount == 0) return false;
+            return flow.Purchase(openAllIapProductId, OpenAll, OnMonetizeFailed);
         }
 
-        void OnOpenAllPurchase(bool success)
+        void OnMonetizeFailed(string message)
         {
-            iapBusy = false;
-            if (!success)
-            {
-                Debug.Log($"[DailyRewardPanel] open-all purchase failed or cancelled: {openAllIapProductId}");
-                return;
-            }
-
-            OpenAll();
+            Debug.Log($"[DailyRewardPanel] open-all did not go through: {message}");
+            RewardHooks.ShowMessage(message);
+            RefreshAll();
         }
 
         void OpenAll()
@@ -279,11 +285,23 @@ namespace NabaGame.Reward
             bool adsOn = openAllUseAds && openAllAdsRequired > 0 && UnopenedCount > 0;
             bool iapOn = !openAllUseAds && OpenAllIapEnabled && UnopenedCount > 0;
 
-            if (openAllAdsButton) openAllAdsButton.gameObject.SetActive(adsOn);
+            bool busy = flow != null && flow.Busy;
+
+            if (openAllAdsButton)
+            {
+                openAllAdsButton.gameObject.SetActive(adsOn);
+                openAllAdsButton.interactable = !busy;
+            }
+
             if (adsOn && openAllAdsCountLabel) openAllAdsCountLabel.text = $"{Profile.OpenAllAdsWatched}/{openAllAdsRequired}";
 
-            if (openAllIapButton) openAllIapButton.gameObject.SetActive(iapOn);
-            if (iapOn && openAllIapPriceLabel) openAllIapPriceLabel.text = openAllIapPriceText;
+            if (openAllIapButton)
+            {
+                openAllIapButton.gameObject.SetActive(iapOn);
+                openAllIapButton.interactable = !busy;
+            }
+
+            if (iapOn && openAllIapPriceLabel) openAllIapPriceLabel.text = IapPriceText;
 
             if (comeBackLabel) comeBackLabel.SetActive(UnopenedCount == 0);
         }

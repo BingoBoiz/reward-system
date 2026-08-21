@@ -7,9 +7,16 @@ namespace NabaGame.Reward
     // defaults keep a freshly dragged prefab working: missing ads/iap reward immediately and log the gap
     public static class RewardHooks
     {
+        // compare against these to localize instead of showing the English text
+        public const string AdNotAvailableMessage = "No ad available right now";
+        public const string AdSkippedMessage = "Watch the full ad to get the reward";
+        public const string PurchaseFailedMessage = "Purchase failed";
+
         public static Action<AudioClip> PlaySfx = DefaultPlaySfx;
         public static Action<string, Action, Action> ShowRewardedAd = DefaultShowRewardedAd;
         public static Action<string, Action<bool>> PurchaseIap = DefaultPurchaseIap;
+        public static Func<string, string> GetIapPrice = DefaultGetIapPrice;
+        public static Action<string> ShowMessage = DefaultShowMessage;
 
         static void DefaultPlaySfx(AudioClip clip)
         {
@@ -27,6 +34,14 @@ namespace NabaGame.Reward
             onResult?.Invoke(true);
         }
 
+        // empty falls back to the price string authored on the panel
+        static string DefaultGetIapPrice(string productId) => "";
+
+        static void DefaultShowMessage(string message)
+        {
+            Debug.LogWarning($"[RewardHooks] ShowMessage is not set, the player sees nothing: {message}");
+        }
+
         // statics survive play sessions when domain reload is disabled
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetState()
@@ -34,6 +49,8 @@ namespace NabaGame.Reward
             PlaySfx = DefaultPlaySfx;
             ShowRewardedAd = DefaultShowRewardedAd;
             PurchaseIap = DefaultPurchaseIap;
+            GetIapPrice = DefaultGetIapPrice;
+            ShowMessage = DefaultShowMessage;
         }
     }
 }

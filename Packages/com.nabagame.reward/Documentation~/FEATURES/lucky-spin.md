@@ -13,7 +13,7 @@ A weighted prize wheel. One free spin per cooldown window; additional spins by w
 - Popup with the wheel centered, close (X) top-right.
 - **Wheel of N wedges** (count = the authored `wedges` list in the prefab — 8 in the shipped board, matching the ASMR-Tower wheel art; the panel warns when `rows.Count` disagrees, and with more rows than wedges the wheel can visually land on a wrapped wedge while the grant `rows[index]` stays correct), each wedge showing a reward icon + amount label (`1.5K`, `100B`, `X10`, …); one highlighted jackpot wedge allowed via rarity styling. Golden rim with dot lights, white center hub, fixed pointer at 12 o'clock.
 - Spin button states below the wheel:
-  - **Free spin available** — green `SPIN` button (may carry a red badge).
+  - **Free spin available** — green `SPIN` button. The red dot on it is host-side (`SampleRedDot`, key `LuckySpin`), not part of the panel.
   - **Cooldown** — ad-spin variant: `SPIN` button with a video icon and caption `Free spin in mm:ss` counting down to the next free spin.
 - During a spin all buttons lock; the wheel accelerates then decelerates onto the result wedge (DOTween ease-out); result lands with feedback (SFX + grant).
 
@@ -43,7 +43,7 @@ Panel knobs (`[SerializeField]` on the `LuckySpinPanel` prefab): `freeSpinCooldo
 - `ResetProfile()` — QA/debug reset.
 - Consts: `SaveKey`, `ProfileVersion`, `AdPlacement`.
 
-The spin button runs the free spin when ready, else the ad spin (`AdFlow`, placement `LuckySpin_AdSpin`). The roll is weighted over the rows and resolved **before** the animation: the panel raises `SpinStartedEvent`, plays the wind-up + deceleration tween onto the pre-rolled wedge, waits `spinDurationSeconds` on unscaled time, then on wheel stop plays `landSfx` + the row's `ClaimSfx`, `Debug.Log`s the grant, and invokes `Row.OnClaimed` — the host grants there.
+The spin button runs the free spin when ready, else the ad spin (`RewardFlow`, placement `LuckySpin_AdSpin`). The roll is weighted over the rows and resolved **before** the animation: the panel raises `SpinStartedEvent`, plays the wind-up + deceleration tween onto the pre-rolled wedge, waits `spinDurationSeconds` on unscaled time, then on wheel stop plays `landSfx` + the row's `ClaimSfx`, `Debug.Log`s the grant, and invokes `Row.OnClaimed` — the host grants there.
 
 ## Events / hooks / placements
 
@@ -58,10 +58,10 @@ The spin button runs the free spin when ready, else the ad spin (`AdFlow`, place
 
 1. Free spin: wheel decelerates exactly onto the rolled wedge; exactly one `OnClaimed` reaches the host handler (currency changes, grant log in Console); cooldown label starts (`Free spin in mm:ss`).
 2. Distribution sanity: `PreviewRollDistribution` — wedge frequencies follow row weights.
-3. Ad spin: available during cooldown; ad skip → no spin, button unlocked; editor path spins immediately; spam during `IsSpinning` or ad flow → single spin; a host SDK that swallows both callbacks un-sticks after the `AdFlow` timeout (~15s).
+3. Ad spin: available during cooldown; the panel cannot be closed while the ad is up; a skipped, throttled or unavailable ad → no spin, a `ShowMessage` notice, button unlocked (`RewardFlow`, ARCHITECTURE §8); editor path spins immediately; spam during `IsSpinning` or ad flow → single spin.
 4. Kill app / reopen mid-cooldown → remaining cooldown correct from the wall-clock deadline; kill during spin animation → no grant duplication (grant-on-stop rule; a kill mid-spin loses that spin).
 5. Open/close panel repeatedly → no duplicated listeners; tweens killed on close; hiding via `Hide()` stops the countdown loop.
-6. Null-button pass: disable/delete `spinButton`, `cooldownLabel`, `pointer`, `spinBadge` → no exception, no stuck state.
+6. Null-button pass: disable/delete `spinButton`, `cooldownLabel`, `pointer` → no exception, no stuck state.
 
 ## Decisions (Phase 4)
 

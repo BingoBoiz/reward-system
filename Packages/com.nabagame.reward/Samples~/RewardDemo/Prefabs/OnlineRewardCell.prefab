@@ -159,7 +159,6 @@ MonoBehaviour:
   timerLabel: {fileID: 8724534930459075318}
   claimLabel: {fileID: 8457614156136951419}
   claimedTick: {fileID: 7816653383025436999}
-  badge: {fileID: 7844587622717690528}
   canvasGroup: {fileID: 2735500488983704005}
   frameSprites:
   - {fileID: 21300000, guid: 57a3292cab46f7643959ecb6eb96e3c3, type: 3}
@@ -601,6 +600,7 @@ GameObject:
   - component: {fileID: 6239482287247735681}
   - component: {fileID: 104967961199738833}
   - component: {fileID: 1594986164936295425}
+  - component: {fileID: 9185715473347528940}
   m_Layer: 0
   m_Name: Badge
   m_TagString: Untagged
@@ -665,6 +665,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &9185715473347528940
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7844587622717690528}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db03d42f66062404a8eb41137c7495e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  key: 5
+  icon: {fileID: 1594986164936295425}
+  animate: 1
+  swingAngle: 20
+  swingScale: 1.15
+  windDuration: 0.09
+  settleDuration: 0.5
+  restDuration: 1.25
 --- !u!1 &8425257975669689150
 GameObject:
   m_ObjectHideFlags: 0

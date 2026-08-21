@@ -702,6 +702,7 @@ GameObject:
   - component: {fileID: 1440784588440187996}
   - component: {fileID: 968750646674607983}
   - component: {fileID: 8966390789519321199}
+  - component: {fileID: 8423837421025901939}
   m_Layer: 5
   m_Name: Badge
   m_TagString: Untagged
@@ -766,6 +767,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &8423837421025901939
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2969667707073941796}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db03d42f66062404a8eb41137c7495e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  key: 3
+  icon: {fileID: 8966390789519321199}
+  animate: 1
+  swingAngle: 20
+  swingScale: 1.15
+  windDuration: 0.09
+  settleDuration: 0.5
+  restDuration: 1.25
 --- !u!1 &3326546123746684933
 GameObject:
   m_ObjectHideFlags: 0
@@ -1278,11 +1299,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dailyButton: {fileID: 7193866625473757870}
-  dailyBadge: {fileID: 6237768055813945115}
   spinButton: {fileID: 4747975364520576686}
-  spinBadge: {fileID: 8028369025752764344}
   playtimeButton: {fileID: 348443678388841763}
-  playtimeBadge: {fileID: 2969667707073941796}
 --- !u!1 &5326424590453541881
 GameObject:
   m_ObjectHideFlags: 0
@@ -1446,6 +1464,7 @@ GameObject:
   - component: {fileID: 4698690926861583432}
   - component: {fileID: 767847050013652978}
   - component: {fileID: 607370584498161877}
+  - component: {fileID: 6534921531953664661}
   m_Layer: 5
   m_Name: Badge
   m_TagString: Untagged
@@ -1510,6 +1529,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &6534921531953664661
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6237768055813945115}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db03d42f66062404a8eb41137c7495e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  key: 1
+  icon: {fileID: 607370584498161877}
+  animate: 1
+  swingAngle: 20
+  swingScale: 1.15
+  windDuration: 0.09
+  settleDuration: 0.5
+  restDuration: 1.25
 --- !u!1 &6485458326745109099
 GameObject:
   m_ObjectHideFlags: 0
@@ -2236,6 +2275,7 @@ GameObject:
   - component: {fileID: 8868501077882630696}
   - component: {fileID: 680783874636168202}
   - component: {fileID: 6486453854746175408}
+  - component: {fileID: 3953380745865387715}
   m_Layer: 5
   m_Name: Badge
   m_TagString: Untagged
@@ -2300,6 +2340,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &3953380745865387715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8028369025752764344}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db03d42f66062404a8eb41137c7495e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  key: 2
+  icon: {fileID: 6486453854746175408}
+  animate: 1
+  swingAngle: 20
+  swingScale: 1.15
+  windDuration: 0.09
+  settleDuration: 0.5
+  restDuration: 1.25
 --- !u!1001 &193633623178314542
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2533,6 +2593,38 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: inAnimations.scale.enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: outAnimations.scale.enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: inAnimations.fadeIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: inAnimations.fadeIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: outAnimations.fadeIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: outAnimations.fadeIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: outAnimations.scaleIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4706029848088862689, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
+      propertyPath: outAnimations.scaleIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5021067768088750745, guid: 71471cab6e702bf47896c1165bc1af26, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -2746,6 +2838,38 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: inAnimations.scale.enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: outAnimations.scale.enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: inAnimations.fadeIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: inAnimations.fadeIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: outAnimations.fadeIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: outAnimations.fadeIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: outAnimations.scaleIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7496319683996273047, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
+      propertyPath: outAnimations.scaleIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8013323716994955992, guid: c0740d9c3c9e9894d90d6d36742c99e8, type: 3}
       propertyPath: m_Name
       value: 200_DailyRewardPanel
@@ -2789,7 +2913,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1722140199909107955, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
       propertyPath: m_fontSize
-      value: 63.45
+      value: 52
       objectReference: {fileID: 0}
     - target: {fileID: 1722140199909107955, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
       propertyPath: m_TextStyleHashCode
@@ -2903,6 +3027,14 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 5123495208062918822, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: m_fontSize
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 5123495208062918822, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 5219454489617308404, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
       propertyPath: m_fontSize
       value: 88
@@ -2934,6 +3066,54 @@ PrefabInstance:
     - target: {fileID: 7091223178248825540, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
       propertyPath: m_AdditionalShaderChannelsFlag
       value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: inAnimations.scale.enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: outAnimations.scale.enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: inAnimations.fadeIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: inAnimations.fadeIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: outAnimations.fadeIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: outAnimations.fadeIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: outAnimations.scaleIsExpanded.m_Value
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7208437047063293316, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: outAnimations.scaleIsExpanded.m_Target
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8049460837855237073, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: m_fontSize
+      value: 36
+      objectReference: {fileID: 0}
+    - target: {fileID: 8049460837855237073, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8494829457754288833, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: m_fontSize
+      value: 52
+      objectReference: {fileID: 0}
+    - target: {fileID: 8494829457754288833, guid: 5ee956d5261eeed46a9f801bcb918744, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

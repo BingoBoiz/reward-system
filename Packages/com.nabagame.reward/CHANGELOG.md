@@ -2,6 +2,71 @@
 
 All notable changes to this package are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.12.0] - 2026-08-21
+
+Monetization reliability pass, calibrated against the shipped `com.bmh.ads` (AppLovin MAX) + Unity IAP stack that `dress-to-impress` runs on. Every rewarded ad and every purchase now resolves exactly once and always tells the player what happened. Breaking (`AdFlow` deleted, two hooks added).
+
+Also in this release: **one clock**. Every wall-clock and monotonic read in the package goes through a single `RewardClock` static, and countdown labels tick exactly when their displayed digit changes — which fixes the x2/x5 speed-up skipping numbers (decision #34). Breaking (two static members moved).
+
+### Changed (breaking)
+
+- **`AdFlow` is replaced by `RewardFlow`** (decision #31), which guards purchases as well as ads. `iapBusy` is gone from `DailyRewardPanel` and `OnlineRewardPanel` — an IAP whose callback never fired used to brick the OPEN ALL button for the whole session, because only the ad path had a failsafe. `RewardFlow` also clears `Busy` **before** invoking the callback, so a `RefreshAll()` from inside the reward callback paints the live state instead of the disabled one (Daily has no countdown loop, so it stayed stale until the next change event).
+- **`TimeScheduler.NowMs` and `TimeScheduler.SecondsUntil` moved to `RewardClock`** (`Runtime/Core/RewardClock.cs`). `TimeScheduler` keeps only `Schedule`/`Cancel`/`Handle` and sweeps its deadlines against `RewardClock.NowMs`. Hosts that read the clock through the scheduler replace the type name; nothing else changes.
+
+### Fixed
+
+- **A rewarded ad that never shows no longer freezes the button in silence** (decision #32). The shipped SDK discards `ShowRewardedVideo`'s `skip` argument and returns without calling anything when the reward is interval-throttled (`rewardAdsIntervalTime`, **10s** by default), when nothing is loaded, when the user skips, or when display fails — only a granted reward calls back. The old 15s `Busy` timeout released the guard quietly and no panel ever passed an `onSkip`, so the second ad of any multi-ad flow (Daily/Online OPEN ALL, x5 speed-up) looked like a dead button with an unmoving counter. `RewardFlow` now infers the outcome from app focus: no focus loss within ~3s means the ad never opened, focus regained with no reward means it was skipped. Either way the panel refreshes and raises `RewardHooks.ShowMessage`.
+- `LuckySpinPanel.SpinByAd` ignored `Show()`'s return value and always reported success; it now returns what the flow returns. `ClosePanel` and `RefreshAll` also treat an in-flight ad like a spin in progress — closing mid-ad used to spin the wheel on a hidden panel.
+- `DailyRewardPanel.RefreshAll` greys the OPEN ALL buttons while a request is in flight, matching `OnlineRewardPanel`.
+- A resolve whose owning panel was destroyed mid-ad drops its callbacks instead of running against a dead MonoBehaviour.
+- `INTEGRATION-GUIDE` §6 documented `IAPManager.Instance.InitiatePurchase(productId, callback)`, which does not exist in the consumer project — the real entry point is `PurchaseProduct(productId, onSuccess, onFailed)`. The snippet now compiles, and carries the four production notes that stack needs (silent ad failures, `ResetLastShowOpenAds()` before `InitiatePurchase`, remove-ads must keep rewarded alive, push the interstitial clock after a rewarded view).
+- **x2/x5 speed-up skipped digits** (59 → 54 → 49 at ×5): slot timers now count 59, 58, 57 at five ticks per real second (seven at ×7), and drop back to one per second when the buff expires with no jump.
+- At ×1 the old loops drifted against the display boundary by frame granularity and silently skipped a digit about once a minute; the aligned delay removes that too.
+- `DailyRewardPanel` read `DateTime.UtcNow` on its own (two separate reads, no culture) — `TodayUtc` and the midnight deadline now come from `RewardClock`, and `SetInfo`/`OnRollover` arm the rollover **before** evaluating the week reset, so a midnight passing between the two reads fires on the next scheduler sweep instead of being lost until the next launch.
+
+### Added
+
+- **`RewardHooks.GetIapPrice`** (`Func<string, string>`, productId → localized store price; default `""`). Read on every refresh by both Open All panels, with the panel's `openAllIapPriceText` demoted to the pre-store-init fallback (decision #33 supersedes the price half of #20). A hard-coded `$4.99` is the wrong currency everywhere outside the US. Adapter is one line onto `IAPManager.GetProductPrice`.
+- **`RewardHooks.ShowMessage`** (`Action<string>`; default `LogWarning`) plus the constants `AdNotAvailableMessage` / `AdSkippedMessage` / `PurchaseFailedMessage`, so a host can compare and show its own localized copy rather than the English default.
+- Sample: `SampleRewardBoot`'s fake ad is now **asynchronous** and switchable through an `AdResult` enum (`Reward` / `Skip` / `Swallow`) — `Swallow` reproduces the production throttle that answers with nothing. A `fakeIapPrice` field exercises `GetIapPrice`. The old synchronous fake resolved inside `Show()` and hid exactly the ordering bugs fixed above.
+- **`RewardClock`** — the package's only clock (decision #34): `NowMs`, `UtcNow`, `TodayUtc` (the `yyyy-MM-dd` save-file day key, now formatted with `CultureInfo.InvariantCulture`), `NextUtcMidnightMs`, `SecondsUntil`, `MonotonicSeconds` (`Time.realtimeSinceStartupAsDouble`, for accrual baselines), and `MsUntilNextTick(remainingSeconds, rate)` — realtime ms until a ceil-displayed countdown shows its next value. No other Runtime file reads `DateTime*` or `Time.realtimeSinceStartup*`, so a future fake/server time is a one-file change. A host daily-quest or shop-refresh system can use the same members.
+- **Boundary-aligned countdowns.** `OnlineRewardPanel` and `LuckySpinPanel` replaced their fixed `UniTask.Delay(1000, ignoreTimeScale)` refresh with a `DelayType.Realtime` delay recomputed each iteration from `RewardClock.MsUntilNextTick`. Online wakes at whichever changes first — a slot digit (playtime rate = active multiplier) or a booster digit (wall rate) — and restarts its loop from `RaiseChanged()` so a multiplier change mid-sleep cannot jump digits.
+
+## [0.11.0] - 2026-08-20
+
+Red dots leave the package. The three panels no longer render or reference a badge anywhere — reading panel, card, or cell code shows no trace of one. Every dot is host-side now, and the sample ships a self-driven component that does the whole job. Breaking (three serialized fields removed).
+
+### Changed (breaking)
+
+- **`DailyRewardCard.badge`, `OnlineRewardCell.badge` and `LuckySpinPanel.spinBadge` are deleted.** The package draws no notification badge, not even inside its own panels (decision #30). Consumer prefabs keep their badge GameObjects but lose those wirings — put `SampleRedDot` on each one instead. Panels only carry a one-line pointer comment in the `#region API`.
+- `SampleHomeButtons` is now just three buttons: its `dailyBadge`/`spinBadge`/`playtimeBadge` fields, its `Refresh()`, and its event subscriptions are gone — each dot subscribes for itself.
+
+### Added
+
+- **`SampleRedDot`** (`Samples~/RewardDemo/Scripts`): drop it on a dot `Image`, pick a `SampleRedDotKey` (`DailyReward`, `LuckySpin`, `OnlineReward`, `DailyRewardCard`, `OnlineRewardCell`, or `None` for manual `SetOn(bool)`), and it subscribes to the three `{Feature}ChangedEvent`s, evaluates the panel query, and animates itself. The card/cell keys resolve their own index from the `DailyRewardCard`/`OnlineRewardCell` parent, so one component covers per-item dots too. The bell-ring tween (tilt+grow strike → `OutElastic` settle → rest interval → loop) is ported 1:1 from the consumer project's `RedDotView`, values included.
+- `DailyRewardPanel.GetState(int day)` and `OnlineRewardPanel.GetState(int slot)` are now **public, guarded API-region queries** (return `Locked` before `SetInfo` or for an out-of-range index) — the per-card/per-cell state a host dot needs, named neutrally. No new method: the existing private ones moved up.
+- **Every `SetInfo(rows)` now ends with `RaiseChanged()`** — loading the profile *is* a state change, and without the raise a listener created before boot (any red dot, any HUD) sat on its empty initial reading until the next claim or timer tick. `SampleHomeButtons` used to hide this because boot called its `Refresh()` last.
+
+## [0.10.0] - 2026-08-20
+
+Online Reward config parity with Daily Reward: every monetized action on the panel is now an Inspector knob instead of a hard-coded constant. Breaking (one serialized field renamed).
+
+### Changed (breaking)
+
+- **`OnlineRewardPanel.openAllButton` is replaced by the four-field Open All cluster** `openAllAdsButton` / `openAllAdsCountLabel` / `openAllIapButton` / `openAllIapPriceLabel` — the same shape `DailyRewardPanel` already had. Consumer prefabs must author both buttons at the same spot and rewire; the demo `OnlineRewardPanel.prefab` ships them under a new `OpenAllRoot` (green + video icon + `n/required` counter, blue + gift icon + price label), positioned and 9-sliced like Daily's pair.
+
+### Added
+
+- `OnlineRewardPanel` Config tab knobs: **`x2AdsRequired`** (default 1) — the x2 booster's ad requirement was previously hard-coded to a single ad, x5's was already serialized — plus the Daily-style Open All set **`openAllUseAds`** (default on), **`openAllAdsRequired`** (default 1), **`openAllIapProductId`**, **`openAllIapPriceText`**. OPEN ALL now runs either a multi-ad flow or an IAP purchase, picked by the bool; the inactive mode's flow is refused (`RequestOpenAllAds` / `RequestOpenAllIap` gate on it) and exactly one button is ever visible.
+- `WarnConfig()` runs from `SetInfo` and warns (never throws, per the leniency ladder) when the active mode's config is empty: a non-positive `x2AdsRequired` / `x5AdsRequired` turns that booster off, a non-positive `openAllAdsRequired` or an empty `openAllIapProductId` turns OPEN ALL off, and a set product id with no price text warns on its own.
+- `OnlineRewardProfile` gains `SpeedUpX2Ads` and `OpenAllAdsWatched` alongside `SpeedUpX5Ads`, so every partial ad-watch counter survives a session. `ResetSession()` clears all three; activating a booster or completing OPEN ALL clears its own counter.
+- Debug tab: `Open All Ads` and `Open All IAP` buttons replace the single `Open All`.
+
+### Changed
+
+- The demo `OnlineRewardPanel.prefab` sets `openAllUseAds` on with `openAllAdsRequired = 3` (matching Daily's demo, so the counter is exercised), `x2AdsRequired = 1` (the previous hard-coded behavior), and fills `openAllIapProductId` / `openAllIapPriceText` with `com.nabagame.sample.onlineopenall` / `$4.99` so flipping the bool works without further wiring.
+- `AddSpeedUpAd` / `ActivateSpeedUp` no longer special-case x5 — both boosters count and clear their own persisted ad counter through a shared `SetSpeedUpAds`.
+
 ## [0.9.0] - 2026-08-20
 
 Fixed-board refactor (ARCHITECTURE decision #28): the two fixed-count boards are now inspector-authored. Breaking.
@@ -21,7 +86,7 @@ Fixed-board refactor (ARCHITECTURE decision #28): the two fixed-count boards are
 ### Changed
 
 - Daily Open All mode is now an explicit Inspector bool **`openAllUseAds`** on `DailyRewardPanel` (Config tab, default on): on shows the ads button, off shows the IAP button — replacing the 0.8.1 "IAP config wins over ads" inference, so switching modes no longer requires clearing `openAllIapProductId`. The inactive mode's flow is refused (`RequestOpenAllAds`/`RequestOpenAllIap` gate on the bool), and `WarnConfig` warns when the active mode's config is empty. The sample `DailyRewardPanel.prefab` sets it on, so the demo now shows the ads OPEN ALL (3 ads) instead of the IAP one.
-- Panel inspectors reorganized into one Odin `TabGroup` on `DailyRewardPanel`, `LuckySpinPanel`, and `OnlineRewardPanel`: `Rows` (read-only host data preview), `Config`, `UI`, `FX`, `Profile` (inline save-state view, now visible on all three panels), and `Debug` (parameterless preview buttons packed into horizontal `ButtonGroup` rows, parameterized ones full-width). Crowded tabs keep `FoldoutGroup` sub-sections (Daily `Open All`/`Cards`, Spin `Spin Button`/`Wheel`/`SFX`). Each serialized field also carries a short Vietnamese `//` comment (under 7 words) describing what to fill in — a deliberate, protected exception to the English-comments rule (see CONVENTIONS.md). No behavior or serialization change; existing prefab values are untouched.
+- Panel inspectors reorganized into one Odin `TabGroup` on `DailyRewardPanel`, `LuckySpinPanel`, and `OnlineRewardPanel`, same tabs in the same order on all three: `UI` (references first), `Config`, `Data` (read-only host `rows` preview + the inline `Profile` save-state view), `FX`, and `Debug` (parameterless preview buttons packed into horizontal `ButtonGroup` rows, parameterized ones full-width). Crowded tabs keep `FoldoutGroup` sub-sections (Daily `Open All`/`Cards`, Spin `Spin Button`/`Wheel`/`SFX`). Each serialized field also carries a short Vietnamese `//` comment (under 7 words) describing what to fill in — a deliberate, protected exception to the English-comments rule (see CONVENTIONS.md). No behavior or serialization change; existing prefab values are untouched.
 - Demo panel prefabs (`DailyRewardPanel`, `LuckySpinPanel`, `OnlineRewardPanel`, `SampleItemReceivedPanel`) now ship `useCustomStartAnchoredPosition = true` with `customStartAnchoredPosition = (0, 0, 0)`, so a panel always opens centered no matter where its RectTransform sits in the editor. `SampleUIRoot.prefab` parks the panels on a non-overlapping grid with a clear gap — Daily `(0, 1500)`, Online `(0, -1500)`, Spin `(2800, 0)`, ItemReceived `(-2800, 0)` — and pins the always-visible HUD roots (`HomeButtons`, `SampleCurrencyHud`, which have no `UIElement` to snap them back) at `(0, 0)`.
 
 ## [0.8.1] - 2026-08-20

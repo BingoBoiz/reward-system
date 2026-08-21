@@ -13,12 +13,12 @@ A 7-day claim strip: once per (UTC) day the player claims the next card in the r
 - Popup with "DAILY!" title (calendar icon) and a close (X) button top-right.
 - One horizontal row of 7 reward cards. Card anatomy: reward icon (from the row's `Icon`), amount label (formatted, e.g. `+7.5K`, `+200B`), and a state:
   - **Claimed** — dimmed/blue with a green check overlay.
-  - **Claimable** — bright card with a `CLAIM` header; may carry a red notification badge.
+  - **Claimable** — bright card with a `CLAIM` header. The red dot on it is host-side (`SampleRedDot`, key `DailyRewardCard`), not part of the card.
   - **Locked** — `CLAIM` header shown but visually inert; mystery cards may hide the icon (silhouette / `???`) until claimed.
 - Rarity-colored card frames (e.g. green RARE, orange EPIC) driven by config, not hardcoded.
 - Under the row, `OpenAllRoot` holds **two OPEN ALL buttons stacked at the same position (the mockup's single-button spot, 440x105) — at most ONE is visible, picked by the `openAllUseAds` Inspector bool**:
   - **Ads button** (green, video icon): label `OPEN ALL` + progress `X/N`; shown when `openAllUseAds` is on, `openAllAdsRequired > 0`, and the week is not fully opened.
-  - **IAP button** (blue, gift icon): label `OPEN ALL` + the dev-supplied price string; shown when `openAllUseAds` is off, `openAllIapProductId` is set, and the week is not fully opened.
+  - **IAP button** (blue, gift icon): label `OPEN ALL` + the price (`RewardHooks.GetIapPrice`, falling back to `openAllIapPriceText`); shown when `openAllUseAds` is off, `openAllIapProductId` is set, and the week is not fully opened.
   - When the whole week is opened (`UnopenedCount == 0`) both buttons hide and a static `COME BACK TOMORROW` label shows.
 
 ## Data (dev-filled)
@@ -49,7 +49,7 @@ Reset semantics: persists across sessions. Saved on every mutation — there is 
 
 - `SetInfo(List<DailyRewardRow> rows)` — single init: validate, load save, arm the midnight rollover (`TimeScheduler`), bind the authored cards, bind listeners. Call from `Start()` at boot; the panel stays hidden.
 - `OpenPanel()` / `ClosePanel()` — dev-facing activation (refresh + `Show()` / `Hide()` + `DailyRewardPanelClosedEvent`).
-- Queries: `int DayCount`, `int StreakDay`, `int ClaimableCount` (0 or 1 today — the red-dot query), `int UnopenedCount`.
+- Queries: `int DayCount`, `int StreakDay`, `int ClaimableCount` (0 or 1 today — the red-dot query), `int UnopenedCount`, `DailyState GetState(int day)` (guarded; `Locked` before `SetInfo` or out of range).
 - `ResetProfile()` — QA/debug reset.
 - Consts: `SaveKey`, `ProfileVersion`, `OpenAllPlacement`.
 
@@ -67,7 +67,7 @@ A claim advances the streak, saves, plays the row's `ClaimSfx`, `Debug.Log`s the
 
 1. Fresh install → day 1 claimable, days 2–7 locked. Claim → `OnClaimed` reaches the host handler (currency changes) and the grant log appears in the Console; card flips to claimed, `ClaimableCount == 0`.
 2. Same day: no further claim possible; button spam grants exactly once.
-3. Advance device/UTC date (or debug override) → next day claimable; red badge logic follows `ClaimableCount`.
+3. Advance device/UTC date (or debug override) → next day claimable; host red dots follow `ClaimableCount` / `GetState(day)`.
 4. Kill app / reopen → streak, claimed states, and ads progress restored from PlayerPrefs.
 5. Open/close panel repeatedly → no duplicated listeners, no double grants.
 6. Ads Open All: with `openAllAdsRequired = 3`, click the ads button 3 times → label 0/3 → 1/3 → 2/3 → the third completed ad claims all remaining days (one audit log + `OnClaimed` per day), buttons hide, `COME BACK TOMORROW` shows.
@@ -89,4 +89,4 @@ A claim advances the streak, saves, plays the row's `ClaimSfx`, `Debug.Log`s the
 
 - The ASMR-Tower art set has no gem icon, so the 7-day table is built from the icons that exist (money / lucky-spin / no-ads); the Open All buttons use `checkpoint_0002_button-green` / `checkpoint_0003_button-blue` 9-sliced to 440x105 (~the mockup's button proportions).
 - The mockup shows a single OPEN ALL button; the panel matches that — one button visible at the mockup position, its ads/IAP variant picked by config (decision above).
-- Locked cards render at full opacity like the mockup; claimable is signalled by the red badge plus a scale pulse.
+- Locked cards render at full opacity like the mockup; the card itself signals claimable with a scale pulse (the red dot on top of it belongs to the host).

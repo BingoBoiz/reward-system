@@ -29,11 +29,10 @@ namespace NabaGame.Reward
         [SerializeField, TabGroup("Tabs", "UI")] TMP_Text cooldownLabel; // chữ đếm ngược lượt free
         [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] Button spinButton; // nút bấm quay
         [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] TMP_Text spinLabel; // chữ trên nút quay
-        [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] GameObject spinBadge; // chấm đỏ báo free spin
         [SerializeField, FoldoutGroup("Tabs/UI/Spin Button")] GameObject videoIcon; // icon ads khi hết free
         [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform wheel; // hình vòng quay sẽ xoay
         [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform pointer; // kim chỉ phần thưởng
-        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] List<LuckySpinWedge> wedges = new List<LuckySpinWedge>(); // múi xếp sẵn theo chiều kim
+        [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] List<LuckySpinWedge> wedges = new (); // múi xếp sẵn theo chiều kim
 
         [SerializeField, TabGroup("Tabs", "FX")] float windUpSeconds = 0.45f; // giây kéo ngược lấy đà
         [SerializeField, TabGroup("Tabs", "FX")] float windUpDegrees = 22f; // độ kéo ngược lấy đà
@@ -44,7 +43,7 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip landSfx; // tiếng lúc kim dừng lại
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
-        readonly AdFlow adFlow = new AdFlow();
+        RewardFlow flow;
         TimeScheduler.Handle cooldownHandle;
         Sequence spinSequence;
         Tween pointerTween;
@@ -64,6 +63,7 @@ namespace NabaGame.Reward
         {
             if (hostRows == null || hostRows.Count < 2) throw new InvalidOperationException("LuckySpinPanel: rows needs at least 2 wedges");
             rows = hostRows;
+            flow = new RewardFlow(this);
             LuckySpinRow.Warn(rows, this);
 
             Profile = RewardProfileStore.Load<LuckySpinProfile>(SaveKey, ProfileVersion);
@@ -71,6 +71,9 @@ namespace NabaGame.Reward
             BindWedges();
             BindUi();
             RefreshAll();
+
+            // the initial state is a state change too: host listeners (red dots, HUD) start out empty
+            RaiseChanged();
         }
 
         public void OpenPanel()
@@ -88,21 +91,22 @@ namespace NabaGame.Reward
 
         public void ClosePanel()
         {
-            if (IsSpinning) return;
+            if (IsSpinning || (flow != null && flow.Busy)) return;
             if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             StopCountdown();
             Hide();
             EventManager.Instance.Raise(new LuckySpinPanelClosedEvent());
         }
 
+        // panel không vẽ chấm đỏ; host tự vẽ (xem SampleRedDot)
         // red-dot query
-        public bool FreeSpinReady => Profile != null && Profile.NextFreeSpinAtMs <= TimeScheduler.NowMs;
+        public bool FreeSpinReady => Profile != null && Profile.NextFreeSpinAtMs <= RewardClock.NowMs;
 
-        public double SecondsUntilFreeSpin => Profile == null ? 0 : TimeScheduler.SecondsUntil(Profile.NextFreeSpinAtMs);
+        public double SecondsUntilFreeSpin => Profile == null ? 0 : RewardClock.SecondsUntil(Profile.NextFreeSpinAtMs);
 
         public bool IsSpinning { get; private set; }
 
-        public bool CanSpinByAd => !IsSpinning && !adFlow.Busy;
+        public bool CanSpinByAd => !IsSpinning && (flow == null || !flow.Busy);
 
         public void ResetProfile()
         {
@@ -120,7 +124,7 @@ namespace NabaGame.Reward
         {
             if (IsSpinning || !FreeSpinReady) return false;
 
-            Profile.NextFreeSpinAtMs = TimeScheduler.NowMs + freeSpinCooldownSeconds * 1000L;
+            Profile.NextFreeSpinAtMs = RewardClock.NowMs + freeSpinCooldownSeconds * 1000L;
             RewardProfileStore.Save(SaveKey, Profile);
             ScheduleCooldownEnd();
             BeginSpin(Roll());
@@ -130,9 +134,16 @@ namespace NabaGame.Reward
         bool SpinByAd()
         {
             if (!CanSpinByAd) return false;
-            adFlow.Show(AdPlacement, () => BeginSpin(Roll()));
+            if (!flow.ShowAd(AdPlacement, () => BeginSpin(Roll()), OnAdFailed)) return false;
             RaiseChanged();
             return true;
+        }
+
+        void OnAdFailed(string message)
+        {
+            Debug.Log($"[LuckySpinPanel] ad spin did not go through: {message}");
+            RewardHooks.ShowMessage(message);
+            RefreshAll();
         }
 
         int Roll()
@@ -249,16 +260,16 @@ namespace NabaGame.Reward
             if (Profile == null) return;
             bool spinning = IsSpinning;
             bool free = FreeSpinReady;
-            bool canSpin = !spinning && (free || CanSpinByAd);
+            bool busy = flow != null && flow.Busy;
+            bool canSpin = !spinning && !busy && (free || CanSpinByAd);
 
-            if (closeButton) closeButton.interactable = !spinning;
+            if (closeButton) closeButton.interactable = !spinning && !busy;
             if (spinButton)
             {
                 spinButton.interactable = canSpin;
                 if (spinButton.image) spinButton.image.color = canSpin ? Color.white : spinDisabledTint;
             }
 
-            if (spinBadge) spinBadge.SetActive(free && !spinning);
             if (videoIcon) videoIcon.SetActive(!free);
             if (spinLabel) spinLabel.rectTransform.anchoredPosition = free ? spinLabelRestPosition : spinLabelRestPosition + Vector2.right * spinLabelShiftWithVideo;
             if (cooldownLabel) cooldownLabel.gameObject.SetActive(!free);
@@ -285,7 +296,7 @@ namespace NabaGame.Reward
             // Hide() can arrive from outside ClosePanel, so visibility is the loop condition
             while (IsVisible())
             {
-                await UniTask.Delay(1000, true, cancellationToken: token);
+                await UniTask.Delay(RewardClock.MsUntilNextTick(SecondsUntilFreeSpin), DelayType.Realtime, cancellationToken: token);
                 if (!FreeSpinReady) RefreshCooldownLabel();
             }
         }
@@ -389,7 +400,7 @@ namespace NabaGame.Reward
         [TabGroup("Tabs", "Debug"), Button("Set Cooldown Seconds"), DisableInEditorMode]
         void PreviewSetCooldownSeconds(int seconds)
         {
-            Profile.NextFreeSpinAtMs = TimeScheduler.NowMs + seconds * 1000L;
+            Profile.NextFreeSpinAtMs = RewardClock.NowMs + seconds * 1000L;
             RewardProfileStore.Save(SaveKey, Profile);
             ScheduleCooldownEnd();
             RaiseChanged();

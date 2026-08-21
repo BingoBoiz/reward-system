@@ -15,7 +15,6 @@ namespace NabaGame.Reward
         [SerializeField] TMP_Text timerLabel;
         [SerializeField] TMP_Text claimLabel;
         [SerializeField] GameObject claimedTick;
-        [SerializeField] GameObject badge;
         [SerializeField] CanvasGroup canvasGroup;
         [SerializeField] Sprite[] frameSprites;
         [SerializeField] float lockedAlpha = 0.72f;
@@ -63,7 +62,6 @@ namespace NabaGame.Reward
                 if (state == OnlineSlotState.Locked) timerLabel.text = FormatTime(remainingSeconds);
             }
 
-            if (badge) badge.SetActive(claimable);
             if (icon) icon.color = new Color(1f, 1f, 1f, claimed ? claimedIconAlpha : 1f);
             if (button) button.interactable = claimable;
             if (canvasGroup) canvasGroup.alpha = state == OnlineSlotState.Locked ? lockedAlpha : 1f;

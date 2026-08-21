@@ -7,7 +7,7 @@ namespace NabaGame.Reward
 {
     // Shared wall-clock scheduler: one 1-second realtime loop serves every feature that
     // needs "run X at unix time T" (daily rollover, slot timers, spin cooldown).
-    // Deadlines are re-checked against the wall clock each tick, so app suspend/resume
+    // Deadlines are re-checked against RewardClock.NowMs each tick, so app suspend/resume
     // needs no per-manager OnApplicationPause catch-up.
     public static class TimeScheduler
     {
@@ -20,10 +20,6 @@ namespace NabaGame.Reward
         static readonly List<Handle> pending = new List<Handle>();
         static readonly List<Handle> due = new List<Handle>();
         static bool running;
-
-        public static long NowMs => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        public static double SecondsUntil(long atUnixMs) => Math.Max(0, (atUnixMs - NowMs) / 1000.0);
 
         public static Handle Schedule(long atUnixMs, Action callback)
         {
@@ -48,7 +44,7 @@ namespace NabaGame.Reward
                 await UniTask.Delay(1000, DelayType.Realtime);
                 for (int i = pending.Count - 1; i >= 0; i--)
                 {
-                    if (NowMs < pending[i].atUnixMs) continue;
+                    if (RewardClock.NowMs < pending[i].atUnixMs) continue;
                     due.Add(pending[i]);
                     pending.RemoveAt(i);
                 }

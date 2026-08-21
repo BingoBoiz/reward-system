@@ -556,7 +556,6 @@ MonoBehaviour:
   cooldownLabel: {fileID: 2712639510277261640}
   spinButton: {fileID: 7760652124744355174}
   spinLabel: {fileID: 9087665878462019546}
-  spinBadge: {fileID: 4448956009250608675}
   videoIcon: {fileID: 2291693876881823987}
   wheel: {fileID: 231275117616838420}
   pointer: {fileID: 4636710571260280652}
@@ -915,6 +914,7 @@ GameObject:
   - component: {fileID: 2903225976202764816}
   - component: {fileID: 7332251304275126499}
   - component: {fileID: 7035502593707101779}
+  - component: {fileID: 5438113124452824922}
   m_Layer: 5
   m_Name: SpinBadge
   m_TagString: Untagged
@@ -979,6 +979,26 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &5438113124452824922
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4448956009250608675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db03d42f66062404a8eb41137c7495e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  key: 2
+  icon: {fileID: 7035502593707101779}
+  animate: 1
+  swingAngle: 20
+  swingScale: 1.15
+  windDuration: 0.09
+  settleDuration: 0.5
+  restDuration: 1.25
 --- !u!1 &5811630341775753399
 GameObject:
   m_ObjectHideFlags: 0
