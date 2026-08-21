@@ -1,22 +1,16 @@
 {
   "name": "com.nabagame.reward",
-  "version": "0.12.0",
+  "version": "1.1.0",
   "displayName": "NabaGame Reward",
-  "description": "Reusable reward features for NabaGame projects: Daily Reward, Online Reward (timed grid with x2/x5 ad speed-up), Lucky Spin. Game-agnostic and data-free: the host fills each manager's row list with its own rewards, every player action comes back as an event the host handles (granting included), and audio/ads plug in through a small hooks contract. See Documentation~ for architecture and integration guides.",
+  "description": "Bộ tính năng thưởng dùng ngay cho game Unity mobile: Daily Reward, Online Reward (lưới thưởng theo thời gian chơi, tua nhanh x2/x5 bằng ads) và Lucky Spin. Mỗi tính năng là một prefab panel tự lo luật chơi, timer, lưu PlayerPrefs và luồng ads/IAP; game truyền danh sách phần thưởng vào SetInfo(rows) và phát thưởng qua callback OnClaimed của từng dòng. Âm thanh, ads, IAP, giá store, thông báo và analytics cắm vào qua RewardHooks. Xem Documentation~ để biết cách hoạt động và hướng dẫn tích hợp.",
   "unity": "2022.3",
-  "author": {
-    "name": "NabaGame"
-  },
-  "keywords": [
-    "reward",
-    "daily",
-    "spin",
-    "nabagame"
-  ],
+  "license": "MIT",
+  "author": { "name": "NabaGame" },
+  "keywords": ["reward", "daily", "spin", "nabagame"],
   "samples": [
     {
       "displayName": "Reward Demo",
-      "description": "Runnable demo of Daily Reward and Lucky Spin: two scenes with row lists filled on the scene-placed managers, panel + template prefabs, home buttons with red-dot badges, a SampleRewardGranter subscribing to the grant events and mapping Row.Key onto its own economy, and a reward-received ceremony popup driven by the granter's grant event.",
+      "description": "Demo chạy được trong một scene (RewardSample.unity): 3 prefab panel, các Sample*Manager đã điền sẵn dữ liệu, adapter ads/IAP giả lập trên SampleGameController, SampleRewardGranter đổi Row.Key thành tiền trong PlayerPrefs từ OnClaimed, chấm đỏ tự chạy và popup nhận quà.",
       "path": "Samples~/RewardDemo"
     }
   ]

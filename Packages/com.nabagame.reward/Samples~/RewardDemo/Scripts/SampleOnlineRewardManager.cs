@@ -14,7 +14,7 @@ namespace NabaGame.Reward.Sample
         public void SetInfo()
         {
             foreach (OnlineRewardRow row in rows) row.OnClaimed = OnClaimed;
-            SampleUIRoot.Instance.onlineRewardPanel.SetInfo(rows);
+            SampleUIManager.Instance.onlineRewardPanel.SetInfo(rows);
         }
 
         void OnClaimed(OnlineRewardRow row) => SampleRewardGranter.Grant(row.Key, row.Icon, row.Amount);

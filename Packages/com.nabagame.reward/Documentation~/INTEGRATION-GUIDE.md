@@ -1,34 +1,32 @@
-# Integration Guide
+# Hướng dẫn tích hợp
 
-How to install `com.nabagame.reward` into a NabaGame host project, from zero to a working feature. The demo host in this repo (`Assets/_RewardDemo/`, a symlink view of `Samples~/RewardDemo/`) is the living reference for every step.
+Cách đưa `com.nabagame.reward` vào game, từ số không đến lúc tính năng chạy. Sample Reward Demo (`Samples~/RewardDemo`) là ví dụ sống cho từng bước.
 
-The whole contract in one paragraph: **drag one panel prefab, write one tiny manager, assign five static hooks at boot.** The panel owns everything (save, timers, ads, IAP, rules); your manager owns the data (`rows`) and the grant reaction (`OnClaimed`). Read a panel's `#region API` — that is the entire surface you need.
+Tóm tắt toàn bộ hợp đồng trong một câu: **kéo một prefab panel, viết một manager nhỏ, gán 5 hook tĩnh lúc khởi động.** Panel lo hết (lưu, timer, ads, IAP, luật chơi); manager của bạn giữ dữ liệu (`rows`) và phát thưởng (`OnClaimed`). Chỉ cần đọc `#region API` của panel là đủ.
 
-## 1. Prerequisites
+## 1. Chuẩn bị
 
-Install these first — git package dependencies are **not** auto-resolved by Unity:
+Cài trước các thứ sau (Unity không tự kéo dependency dạng git):
 
-- `com.nabagame.core` (git) — EventManager, Singleton
-- `com.nabagame.ui` (git) — BaseUI, UIPanel, UIManagerSingleton
+- `com.nabagame.core` (git): EventManager, Singleton
+- `com.nabagame.ui` (git): BaseUI, UIPanel, UIManagerSingleton
 - `com.cysharp.unitask` (git)
-- Odin Inspector vendored under `Assets/Plugins/Sirenix/`
-- DOTween vendored under `Assets/Plugins/Demigiant/`
+- Odin Inspector trong `Assets/Plugins/Sirenix/`
+- DOTween trong `Assets/Plugins/Demigiant/`
 
-Unity 2022.3+. No ads SDK is required by the package itself; the adapters below are one line each onto whatever the host uses.
+Unity 2022.3 trở lên. Package không cần SDK ads; adapter bên dưới chỉ là một dòng gọi sang SDK mà game đang dùng.
 
-## 2. Add the package
+## 2. Thêm package
 
-- Development repo: already embedded under `Packages/com.nabagame.reward/`.
-- Other hosts: Package Manager → *Add package from git URL*, or copy the package folder into `Packages/`. Confirm "NabaGame Reward" appears in Package Manager.
-- **Upgrading from ≤0.7.0: delete any old imported sample first** (`Assets/Samples/NabaGame Reward/<old version>/`) — six sample types were renamed with the `Sample` prefix and the stale copies are duplicate-definition compile errors.
+Package Manager > *Add package from git URL* (`https://github.com/<owner>/<repo>.git?path=Packages/com.nabagame.reward#v1.0.0`), hoặc copy thư mục package vào `Packages/`. Kiểm tra "NabaGame Reward" xuất hiện trong Package Manager.
 
-## 3. Import the Reward Demo sample
+## 3. Import sample Reward Demo
 
-Package Manager → NabaGame Reward → Samples → **Reward Demo** → Import. One scene (`RewardSample.unity`), the `Sample*` scripts, prefabs, and filled sample data land under `Assets/Samples/NabaGame Reward/...`. Everything prefixed `Sample` is plain game-side code you own after import — copy and adapt it.
+Package Manager > NabaGame Reward > Samples > **Reward Demo** > Import. Một scene (`RewardSample.unity`), các script `Sample*`, prefab và dữ liệu mẫu nằm ở `Assets/Samples/NabaGame Reward/...`. Mọi thứ có tiền tố `Sample` là code phía game, bạn copy và sửa thoải mái.
 
-## 4. Write your manager and fill the rows
+## 4. Viết manager và điền rows
 
-The package owns no data and ships no manager. Your manager is ~15 lines — the sample's `SampleDailyRewardManager` is the template:
+Package không giữ dữ liệu và không có manager. Manager của bạn khoảng 15 dòng; `SampleDailyRewardManager` trong sample là mẫu:
 
 ```csharp
 public class SampleDailyRewardManager : MonoBehaviour
@@ -38,7 +36,7 @@ public class SampleDailyRewardManager : MonoBehaviour
     public void SetInfo()
     {
         foreach (DailyRewardRow row in rows) row.OnClaimed = OnClaimed;
-        SampleUIRoot.Instance.dailyRewardPanel.SetInfo(rows);
+        SampleUIManager.Instance.dailyRewardPanel.SetInfo(rows);
     }
 
     void OnClaimed(DailyRewardRow row) => SampleRewardGranter.Grant(row.Key, row.Icon, row.Amount);
@@ -47,125 +45,134 @@ public class SampleDailyRewardManager : MonoBehaviour
 }
 ```
 
-Fill `rows` in the Inspector (Odin `[TableList]`) or from code — the constructor documents what to fill:
+Điền `rows` trong Inspector (bảng Odin `[TableList]`) hoặc bằng code; constructor cho biết cần điền gì:
 
 ```csharp
 rows = new List<DailyRewardRow>
 {
     new DailyRewardRow("cash", 7500000, icon: cashIcon),
     new DailyRewardRow("spin", 1, icon: spinIcon, labelOverride: "RARE"),
-    // ... list position IS the day; no Day/Wedge/Slot field exists
+    // ... vị trí trong list chính là ngày; không có field Day/Wedge/Slot
 };
 ```
 
-Everything you fill lives in the one row class: `Key` (your own vocabulary — the package never interprets it), `Icon`, `Amount`, `ClaimSfx` (per-reward audio), `OnClaimed` (the grant callback), plus per-feature extras (`LabelOverride`/`HideIconUntilClaim`, `Weight`, `UnlockAfterSeconds`).
+Mọi thứ cần điền nằm gọn trong một class row: `Key` (từ vựng của riêng bạn, package không đọc hiểu nó), `Icon`, `Amount`, `ClaimSfx` (âm thanh khi nhận), `OnClaimed` (callback phát thưởng), cộng vài field riêng từng tính năng (`LabelOverride`/`HideIconUntilClaim`, `Weight`, `UnlockAfterSeconds`).
 
-**Incomplete data warns, it never breaks**: missing icons/keys produce one aggregated Console warning naming each gap (`DailyRewardRow.Warn`), and the feature keeps running — finish filling at your own pace. Only structure that cannot run throws: an empty list, fewer than 2 wedges, non-increasing unlock times.
+**Điền thiếu chỉ cảnh báo, không lỗi**: thiếu icon/key sẽ có một cảnh báo gộp trên Console ghi rõ thiếu ở đâu (`DailyRewardRow.Warn`), tính năng vẫn chạy; bạn điền nốt lúc nào cũng được. Chỉ những cấu trúc không thể chạy mới ném lỗi: list rỗng, ít hơn 2 múi, thời gian mở khoá không tăng dần.
 
-## 5. Handle the grant — `Row.OnClaimed`, mandatory
+## 5. Phát thưởng: `Row.OnClaimed`, bắt buộc
 
-There are no grant events. **The row's `OnClaimed` callback is the only grant path** — your manager assigns it before `SetInfo` (step 4). If a claimed row's `OnClaimed` is null, nothing is granted and the Console shows `'key' xN was NOT granted`. Every grant also logs key + amount as an audit line.
+Không có event phát thưởng. **Callback `OnClaimed` của dòng là đường phát thưởng duy nhất**; manager gán nó trước khi gọi `SetInfo` (bước 4). Nếu dòng được nhận mà `OnClaimed` null thì không phát gì và Console hiện `'key' xN was NOT granted`. Mỗi lần phát cũng có một dòng log key + số lượng để tra cứu.
 
-Your handler switches on `Key` and must fail loudly on an unknown one:
+Hàm xử lý `switch` theo `Key` và phải báo lỗi to khi gặp key lạ:
 
 ```csharp
 public static void Grant(string key, Sprite icon, long amount)
 {
     switch (key)
     {
-        case "cash": GameManager.Instance.PlayerProfile.asmrProfile.AddMoney((int)amount); break;
-        // ... every key used in your row lists
-        default: Debug.LogError($"Unknown reward key '{key}' x{amount} — no grant mapping"); return;
+        case "cash": Wallet.AddCash((int)amount); break;
+        // ... mọi key bạn dùng trong rows
+        default: Debug.LogError($"Unknown reward key '{key}' x{amount}: no grant mapping"); return;
     }
-    // then: your ItemGrantedEvent / ceremony popup / tracking
+    // sau đó: event nhận quà / popup / tracking của bạn
 }
 ```
 
-The ceremony popup is host-side by design: the sample's granter raises `SampleItemGrantedEvent` and `SampleItemReceivedPanel` (sorting 250) batches same-frame grants, stacks duplicates by key, and plays the ceremony. The package never opens it.
+Popup nhận quà là của phía game: granter trong sample bắn `SampleItemGrantedEvent`, `SampleItemReceivedPanel` (sorting 250) gộp các lần phát cùng frame, cộng dồn key trùng và chạy hiệu ứng. Package không bao giờ tự mở nó.
 
-## 6. Assign the hooks — five statics, once, at boot
+## 6. Gán hook: 6 static, một lần, lúc khởi động
 
 ```csharp
-// first lines of your boot Start(), before any panel SetInfo
+// những dòng đầu tiên trong Start() của boot, trước mọi SetInfo của panel
 RewardHooks.PlaySfx        = clip => { if (clip) SoundManager.Instance.sfxSource.PlayOneShot(clip); };
-RewardHooks.ShowRewardedAd = (placement, onReward, onSkip) => AdManager.Instance.ShowRewardedVideo(onReward, onSkip, placement);
-RewardHooks.PurchaseIap    = (productId, result) => IAPManager.Instance.PurchaseProduct(productId, _ => result(true), _ => result(false));
-RewardHooks.GetIapPrice    = IAPManager.Instance.GetProductPrice;
-RewardHooks.ShowMessage    = message => ToastManager.Instance.Show(message);   // your own toast/popup
+RewardHooks.ShowRewardedAd = (placement, onReward, onSkip) => Ads.ShowRewarded(placement, onReward, onSkip);
+RewardHooks.PurchaseIap    = (productId, result) => Iap.Purchase(productId, ok => result(ok));
+RewardHooks.GetIapPrice    = Iap.GetLocalizedPrice;
+RewardHooks.ShowMessage    = message => Toast.Show(message);   // toast/popup của bạn
+RewardHooks.TrackEvent     = Analytics.LogEvent;               // (tên event, tên param, giá trị param)
 ```
 
-Unset hooks never throw — the defaults `Debug.LogError` naming the hook and then reward/succeed immediately, so a freshly dragged prefab runs before you wire anything.
+Hook chưa gán không bao giờ ném lỗi: mặc định sẽ `Debug.LogError` ghi tên hook rồi coi như đã xem xong ads / mua thành công, nên prefab vừa kéo vào đã chạy được trước khi bạn nối gì.
 
-**Four things about the shipped `com.bmh.ads` + Unity IAP stack that will bite you if you skip them:**
+**Bốn điều cần kiểm tra ở SDK ads/IAP của bạn:**
 
-1. **`ShowRewardedVideo` ignores its `skip` argument and often answers with nothing at all.** It returns in silence when the reward is interval-throttled (`rewardAdsIntervalTime`, 10s by default — so the *second* ad of a multi-ad OPEN ALL flow hits it every time), when nothing is loaded, when the user skips, and when display fails. Only a granted reward calls back. The package detects all of that itself (ARCHITECTURE §8) and tells the player through `ShowMessage`. **Do not wrap the hook in your own timeout or readiness check** — you will fight `RewardFlow` and double-report.
-2. **Call `AdManager.Instance.ResetLastShowOpenAds()` right before `InitiatePurchase`.** `AdManager.OnApplicationPause` shows an App Open ad whenever the app regains focus, and the store sheet closing *is* a focus regain — without this the player comes back from paying into a fullscreen ad. The reference `IAPManager.PurchaseProduct`/`PurchaseID` already does it; if you wrote your own, add it.
-3. **"Remove ads" must not disable rewarded.** Use `AdManager.OnFake(true, true, true, false)` — banner/interstitial/app-open faked, rewarded still live. Kill rewarded too and every ad button in this package dies. `OnFake` is runtime-only state, so re-apply it from your saved flag on **every** boot.
-4. **Push your interstitial clock forward after each rewarded reward.** A player who just watched a rewarded ad should not be handed an interstitial two seconds later. The package owns no interstitial — this one is on you.
+1. **Nhiều SDK rewarded chỉ gọi lại khi thành công.** Ads bị giới hạn tần suất, chưa load, bị bỏ qua hay lỗi hiển thị đều im lặng; ads thứ hai trong luồng OPEN ALL nhiều ads là ca hay dính nhất. Package tự phát hiện các trường hợp đó (ARCHITECTURE mục 8) và báo người chơi qua `ShowMessage`. **Đừng bọc hook bằng timeout hay kiểm tra sẵn sàng của riêng bạn**, sẽ xung đột với `RewardFlow` và báo hai lần.
+2. **Chặn app-open ad quanh lúc mua.** Nếu SDK hiện app-open ad mỗi khi app lấy lại focus thì lúc đóng màn thanh toán của store cũng là một lần lấy lại focus; không chặn thì người chơi vừa trả tiền xong đã gặp quảng cáo toàn màn.
+3. **"Remove ads" không được tắt rewarded.** Tắt banner/interstitial/app-open, giữ rewarded. Tắt cả rewarded là mọi nút ads trong package chết. Nếu cờ đó chỉ sống trong runtime thì phải gán lại từ dữ liệu đã lưu ở **mỗi** lần boot.
+4. **Đẩy lùi interstitial sau mỗi lần xem rewarded.** Người chơi vừa xem xong rewarded không nên gặp interstitial hai giây sau. Package không quản interstitial; việc này của bạn.
 
-`PurchaseIap` product ids (e.g. `DailyRewardPanel.openAllIapProductId`) must be registered in your IAP catalog. Price display: `GetIapPrice` is read on every refresh and the panel's `openAllIapPriceText` is only the fallback for before the store finishes initializing — return `""` from the hook to keep the authored string.
+Product id của `PurchaseIap` (ví dụ `DailyRewardPanel.openAllIapProductId`) phải có trong catalog IAP. Hiển thị giá: `GetIapPrice` được đọc mỗi lần refresh, `openAllIapPriceText` trên panel chỉ là dự phòng khi store chưa khởi tạo xong; trả `""` từ hook để giữ chuỗi đã nhập.
 
-`ShowMessage` receives one of `RewardHooks.AdNotAvailableMessage` / `AdSkippedMessage` / `PurchaseFailedMessage`. Compare against those constants to show your own localized copy instead of the English default.
+`ShowMessage` nhận một trong `RewardHooks.AdNotAvailableMessage` / `AdSkippedMessage` / `PurchaseFailedMessage`. So sánh với các hằng đó để hiện câu chữ đã dịch của bạn thay vì tiếng Anh mặc định.
 
-## 7. Wire the panel
+## 7. Gắn panel
 
-1. Drop the feature panel prefab (e.g. `DailyRewardPanel` from the sample) under your UI root; add a field for it on your `UIManagerSingleton` (or use the sample's `SampleUIRoot`, which auto-finds panels in `OnValidate`).
-2. Tune the panel's Inspector knobs if needed — they live on the panel prefab: Daily `openAllUseAds` (on = ads button, off = IAP button)/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x2AdsRequired`/`x5AdsRequired` plus the same Open All set as Daily (`openAllUseAds`/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`).
-3. Call your manager's `SetInfo()` **from `Start()` at boot** (see `SampleRewardBoot`) — never from `Awake()` (`UIPanel` applies `startHidden` in its own `Start()`), and never open a panel in the same frame it was initialized.
-   - **Online Reward must be initialized at boot, not lazily on first open** — playtime accrues from `SetInfo`; a lazy init means the grid never unlocks while the panel is closed.
-4. Open it from any button or stub with `OpenPanel()` / close with `ClosePanel()`:
-   `public void OpenDaily() { SampleUIRoot.Instance.dailyRewardPanel.OpenPanel(); }`
+1. Kéo prefab panel (ví dụ `DailyRewardPanel` trong sample) vào dưới UI root; thêm một field trỏ tới nó trên `UIManagerSingleton` của bạn (hoặc dùng `SampleUIManager` của sample, nó tự tìm panel trong `OnValidate`).
+2. Chỉnh thông số trên prefab panel nếu cần: Daily `openAllUseAds` (bật = nút ads, tắt = nút IAP)/`openAllAdsRequired`/`openAllIapProductId`/`openAllIapPriceText`; Spin `freeSpinCooldownSeconds`/`spinDurationSeconds`; Online `x2DurationSeconds`/`x5DurationSeconds`/`x2AdsRequired`/`x5AdsRequired` cộng bộ Open All giống Daily.
+3. Gọi `SetInfo()` của manager **từ `Start()` lúc boot** (xem `SampleGameController`), không gọi trong `Awake()` (`UIPanel` áp `startHidden` trong `Start()` của nó), và không mở panel ngay trong frame vừa khởi tạo.
+   - **Online Reward phải khởi tạo lúc boot, không đợi đến lần mở đầu tiên**: thời gian chơi tính từ `SetInfo`; khởi tạo muộn thì lưới không mở khoá khi panel đang đóng.
+4. Mở từ nút bất kỳ bằng `OpenPanel()`, đóng bằng `ClosePanel()`:
+   `public void OpenDaily() { SampleUIManager.Instance.dailyRewardPanel.OpenPanel(); }`
 
-Any serialized button/label/badge on the panel may be disabled or deleted — the panel guards every reference and simply drops that affordance; nothing throws.
+Nút/label/badge nào trên panel cũng có thể tắt hoặc xoá; panel kiểm tra null mọi tham chiếu và chỉ bỏ chức năng đó, không ném lỗi.
 
-## 8. Register ad placements
+## 8. Analytics
 
-Placement strings are `public const` in each panel's `#region API` (`OnlineReward_x2Speed`, `OnlineReward_x5Speed`, `OnlineReward_OpenAll`, `LuckySpin_AdSpin`, `DailyReward_OpenAll`). Register them in your mediation dashboard/tracking the same way you do for game placements.
+Package tự bắn event, bạn chỉ điền **một chuỗi** cho mỗi tính năng: field `trackEventName` trong tab **Config** của prefab panel (mặc định `daily_reward`, `lucky_spin`, `online_reward`). Đó là tên event; **để trống là tắt** analytics của tính năng đó. Đổi thành `<tên game>_daily_reward` nếu muốn tách theo game.
 
-## 9. Red dots (optional)
+Còn lại chỉ cần gán `RewardHooks.TrackEvent` ở mục 6 vào hàm gửi analytics của bạn. Chữ ký `(string tên event, string tên param, string giá trị param)` cố ý khớp dạng hàm quen thuộc để gán thẳng, không cần lambda.
 
-The package draws no badge — not on the home buttons, not on a Daily card, not on an Online cell. Every dot is yours.
+Shape gửi lên: **event = tính năng, param key = hành động, param value = chi tiết** (đăng ký các param key này trên dashboard):
 
-The sample ships the whole thing as one component: put `SampleRedDot` on the dot's `Image` and pick a `SampleRedDotKey`. It subscribes to the change events itself, evaluates the panel query, and runs the bell-ring tween. Nothing calls it, nothing references it.
+| param key | giá trị | bắn khi |
+|---|---|---|
+| `open` | `"1"` | mở panel |
+| `claim` | `Row.Key` | mỗi lần phát thưởng, kể cả trong Open All |
+| `spin` | `free` / `ads` | bắt đầu một lượt quay (Lucky Spin) |
+| `speed_up` | `x2` / `x5` | tua nhanh được kích hoạt (Online Reward) |
+| `open_all` | `ads` / `iap` | bấm Open All (Daily, Online) |
+| `ads_start` / `ads_done` / `ads_fail` | placement | vòng đời một lần rewarded ads |
+| `iap_start` / `iap_done` / `iap_fail` | product id | vòng đời một lần mua |
 
-| key | evaluates |
+Ví dụ một lần nhận thưởng ngày 3: `daily_reward` / `claim` / `day_3_coin`.
+
+Tên event phải hợp lệ với dashboard analytics: bắt đầu bằng chữ, chỉ chữ-số-gạch dưới, tối đa 40 ký tự. Điền sai thì `SetInfo` ghi một `Debug.LogWarning`; các dịch vụ analytics thường **im lặng bỏ** tên sai chứ không báo lỗi.
+
+Chưa gán `RewardHooks.TrackEvent` thì package `Debug.Log` đúng ba giá trị sắp gửi. Đó cũng là cách kiểm tra trong Editor, vì analytics phần lớn không chạy trong Editor.
+
+## 9. Đăng ký placement ads
+
+Chuỗi placement là `public const` trong `#region API` của từng panel (`OnlineReward_x2Speed`, `OnlineReward_x5Speed`, `OnlineReward_OpenAll`, `LuckySpin_AdSpin`, `DailyReward_OpenAll`). Đăng ký chúng trên dashboard mediation như các placement khác của game.
+
+## 10. Chấm đỏ (tuỳ chọn)
+
+Package không vẽ badge nào: không trên nút home, không trên thẻ Daily, không trên ô Online. Mọi chấm đỏ là của bạn.
+
+Sample gói sẵn thành một component: đặt `SampleRedDot` lên `Image` của chấm đỏ và chọn `SampleRedDotKey`. Nó tự đăng ký event, tự đọc trạng thái panel và tự chạy hiệu ứng rung chuông. Không ai gọi nó, không ai tham chiếu nó.
+
+| key | điều kiện sáng |
 |---|---|
 | `DailyReward` | `dailyRewardPanel.ClaimableCount > 0` |
 | `LuckySpin` | `luckySpinPanel.FreeSpinReady && !IsSpinning` |
 | `OnlineReward` | `onlineRewardPanel.HasClaimable` |
-| `DailyRewardCard` | `dailyRewardPanel.GetState(card.Day) == DailyState.Claimable` (reads its own `DailyRewardCard` parent) |
-| `OnlineRewardCell` | `onlineRewardPanel.GetState(cell.Slot) == OnlineSlotState.Claimable` (reads its own `OnlineRewardCell` parent) |
-| `None` | nothing — you call `SetOn(bool)`, for dots on your own features |
+| `DailyRewardCard` | `dailyRewardPanel.GetState(card.Day) == DailyState.Claimable` (đọc `DailyRewardCard` cha của nó) |
+| `OnlineRewardCell` | `onlineRewardPanel.GetState(cell.Slot) == OnlineSlotState.Claimable` (đọc `OnlineRewardCell` cha của nó) |
+| `None` | không gì cả; bạn tự gọi `SetOn(bool)`, dành cho chấm đỏ của tính năng khác |
 
-Rolling your own instead is three lines:
+Tự viết thì chỉ ba dòng:
 
 ```csharp
 EventManager.Instance.AddListener<DailyRewardChangedEvent>(OnDailyChanged);
-// evaluators: dailyRewardPanel.ClaimableCount > 0, luckySpinPanel.FreeSpinReady, onlineRewardPanel.HasClaimable
+// điều kiện: dailyRewardPanel.ClaimableCount > 0, luckySpinPanel.FreeSpinReady, onlineRewardPanel.HasClaimable
 ```
 
-## 10. Installing into ASMR_Tower specifically
+## 11. Kiểm tra
 
-The sample is skinned with the ASMR_Tower art set on purpose — it drops into `_ASMR_Tower` and looks native:
+Chạy checklist trong mô tả từng tính năng (`FEATURES/<feature>.md`). Các điểm chung:
 
-1. **Delete `Assets/Samples/NabaGame Reward/0.4.0/` first** (see step 2 — otherwise CS0101 duplicate types).
-2. Import the sample; drag the sample's `SampleUIRoot` prefab (self-contained canvas root with all panels) and a `SampleRewardBoot` object with the three `Sample*` managers into `Scn_GP_ASMR_Tower.unity`. No edits to `UIManagerGlobal.cs` are required.
-3. Fill the three existing `HomePanel` stubs, one line each — the buttons (`btDailyReward`, `btSpin`, `btNoAds`) already exist in the scene with empty `onClick` slots; drag `HomePanel` into them and pick the method:
-   ```csharp
-   public void OpenDaily() { SampleUIRoot.Instance.dailyRewardPanel.OpenPanel(); }
-   public void OpenSpin()  { SampleUIRoot.Instance.luckySpinPanel.OpenPanel(); }
-   ```
-4. Replace the sample adapters in `SampleRewardBoot.SetInfo()` with the host's services (exact one-liners in step 6), and point the granter at `GameManager.Instance.PlayerProfile.asmrProfile.AddMoney(...)` — the `MoneyBar` HUD updates itself via `MoneyEvent`.
-5. Known **host** issues to report to the ASMR team (not package bugs, but they will look like it):
-   - `ASMRProfile.AddMoney` saves a literal `0` to PlayerPrefs (`PlayerPrefs.SetInt("asmr_money", 0)`) — all granted currency evaporates on relaunch until they fix it to save `Money`.
-   - The `UIManagerGlobal` root GameObject is saved inactive in `Scn_GP_ASMR_Tower.unity`, so `UIManagerGlobal.Instance` resolves null as the scene stands.
-
-## 11. Verify
-
-Run the feature spec's verification script (in `FEATURES/<feature>.md`). Common checks for every feature:
-
-- A claim lands in **your** `OnClaimed` handler (watch your currency change) and the Console shows the grant audit line. A logged grant with no currency change means your `OnClaimed` assignment or key mapping is wrong.
-- Cooldowns/timers survive backgrounding (focus loss) and kill-app/reopen restores persisted state (session-scoped state resets where specified).
-- Editor ad path: rewarded flows complete immediately in-editor without an SDK.
-- Open/close the panel repeatedly — no duplicated listeners, no double grants on button spam.
-- Disable or delete any serialized button/label on the panel — the feature degrades silently, nothing throws or gets stuck.
+- Nhận thưởng đi vào đúng hàm `OnClaimed` **của bạn** (tiền đổi) và Console có dòng log phát thưởng. Có log mà tiền không đổi nghĩa là gán `OnClaimed` hoặc map key sai.
+- Cooldown/timer sống sót khi app chạy nền (mất focus); tắt app mở lại khôi phục đúng dữ liệu đã lưu (trạng thái theo phiên thì reset như mô tả).
+- Trong Editor, luồng ads hoàn tất ngay mà không cần SDK.
+- Mở/đóng panel nhiều lần: không trùng listener, bấm liên tục không phát thưởng đôi.
+- Tắt hoặc xoá nút/label bất kỳ trên panel: tính năng tự giảm bớt, không lỗi, không kẹt.

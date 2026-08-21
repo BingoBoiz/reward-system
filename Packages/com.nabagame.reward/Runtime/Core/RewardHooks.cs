@@ -17,6 +17,8 @@ namespace NabaGame.Reward
         public static Action<string, Action<bool>> PurchaseIap = DefaultPurchaseIap;
         public static Func<string, string> GetIapPrice = DefaultGetIapPrice;
         public static Action<string> ShowMessage = DefaultShowMessage;
+        // (event name, param key, param value) - the argument order matches the usual analytics signature
+        public static Action<string, string, string> TrackEvent = DefaultTrackEvent;
 
         static void DefaultPlaySfx(AudioClip clip)
         {
@@ -42,6 +44,12 @@ namespace NabaGame.Reward
             Debug.LogWarning($"[RewardHooks] ShowMessage is not set, the player sees nothing: {message}");
         }
 
+        // analytics stays silent in the editor anyway, so an unassigned hook logs what it would have sent
+        static void DefaultTrackEvent(string eventName, string paramName, string paramValue)
+        {
+            Debug.Log($"[RewardHooks] TrackEvent is not set: {eventName} / {paramName} = {paramValue}");
+        }
+
         // statics survive play sessions when domain reload is disabled
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetState()
@@ -51,6 +59,7 @@ namespace NabaGame.Reward
             PurchaseIap = DefaultPurchaseIap;
             GetIapPrice = DefaultGetIapPrice;
             ShowMessage = DefaultShowMessage;
+            TrackEvent = DefaultTrackEvent;
         }
     }
 }

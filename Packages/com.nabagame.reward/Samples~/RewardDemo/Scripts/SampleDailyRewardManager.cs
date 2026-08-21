@@ -14,7 +14,7 @@ namespace NabaGame.Reward.Sample
             foreach (DailyRewardRow row in rows) row.OnClaimed = OnClaimed;
 
             // setup UI panel, but maybe do this in UIManager instead
-            SampleUIRoot.Instance.dailyRewardPanel.SetInfo(rows);
+            SampleUIManager.Instance.dailyRewardPanel.SetInfo(rows);
         }
 
         void OnClaimed(DailyRewardRow row)

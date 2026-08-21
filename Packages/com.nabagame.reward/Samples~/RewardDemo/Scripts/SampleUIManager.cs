@@ -6,7 +6,7 @@ using UnityEngine;
 namespace NabaGame.Reward.Sample
 {
     // the sample's own UI composition root, so importing this sample pulls in no host types
-    public class SampleUIRoot : UIManagerSingleton<SampleUIRoot>
+    public class SampleUIManager : UIManagerSingleton<SampleUIManager>
     {
         [SerializeField, FoldoutGroup("Common")]
         public DailyRewardPanel dailyRewardPanel;
@@ -20,6 +20,12 @@ namespace NabaGame.Reward.Sample
         [SerializeField, FoldoutGroup("Common")]
         public SampleItemReceivedPanel itemReceivedPanel;
 
+        [SerializeField, FoldoutGroup("Common")]
+        public SampleHomePanel homePanel;
+
+        [SerializeField, FoldoutGroup("Common")]
+        public SampleCurrencyPanel currencyPanel;
+
         [SerializeField] List<BaseUI> checkHasPopup = new List<BaseUI>();
 
         private void OnValidate()
@@ -28,10 +34,14 @@ namespace NabaGame.Reward.Sample
             if (!luckySpinPanel) luckySpinPanel = GetComponentInChildren<LuckySpinPanel>(true);
             if (!onlineRewardPanel) onlineRewardPanel = GetComponentInChildren<OnlineRewardPanel>(true);
             if (!itemReceivedPanel) itemReceivedPanel = GetComponentInChildren<SampleItemReceivedPanel>(true);
+            if (!homePanel) homePanel = GetComponentInChildren<SampleHomePanel>(true);
+            if (!currencyPanel) currencyPanel = GetComponentInChildren<SampleCurrencyPanel>(true);
         }
 
         public void SetInfo()
         {
+            // homePanel and currencyPanel are deliberately never registered: they are always visible,
+            // so HasPopup() would answer true forever and every home button would stop opening
             if (dailyRewardPanel && !checkHasPopup.Contains(dailyRewardPanel)) checkHasPopup.Add(dailyRewardPanel);
             if (luckySpinPanel && !checkHasPopup.Contains(luckySpinPanel)) checkHasPopup.Add(luckySpinPanel);
             if (onlineRewardPanel && !checkHasPopup.Contains(onlineRewardPanel)) checkHasPopup.Add(onlineRewardPanel);

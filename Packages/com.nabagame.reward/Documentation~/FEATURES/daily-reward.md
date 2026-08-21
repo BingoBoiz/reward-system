@@ -1,92 +1,91 @@
 # Daily Reward
 
-**Status:** shipped in package `0.2.0` (2026-08-19); contract flip in `0.6.0`; Open All (ads/IAP) in `0.7.0`; **panel-owned rework shipped in `0.8.0` (2026-08-20, decisions #21–#27)** — the package `DailyRewardManager` is gone, `DailyRewardPanel` owns everything, the host writes a `SampleDailyRewardManager`-style manager.
+`DailyRewardPanel` lo toàn bộ tính năng; game viết một manager kiểu `SampleDailyRewardManager`. Tài liệu này là chuẩn cho hành vi và dữ liệu.
 
-**Mockup:** `Assets/_ASMR-Tower/Art/preview/daily.jpg` in the host repo (2400x1080, = the design resolution, so mockup pixels are canvas units 1:1). `../RefUI/daily-reward.png` is still absent. This doc is authoritative for behavior/data.
+## Là gì
 
-## What it is
+Dãy 7 thẻ điểm danh: mỗi ngày (UTC) người chơi nhận thẻ kế tiếp; thẻ đã nhận giữ dấu, thẻ sau còn khoá. Phần thưởng tăng dần trong tuần; ngày 7 là phần thưởng lớn.
 
-A 7-day claim strip: once per (UTC) day the player claims the next card in the row; claimed cards stay marked, future cards stay locked. Rewards escalate across the week; day 7 is the hero reward.
+## Giao diện
 
-## UI spec (from mockup)
+- Popup có tiêu đề "DAILY!" (icon lịch) và nút đóng (X) góc trên phải.
+- Một hàng ngang 7 thẻ. Thẻ gồm: icon phần thưởng (từ `Icon` của row), label số lượng (đã định dạng, ví dụ `+7.5K`, `+200B`), và trạng thái:
+  - **Đã nhận**: mờ/xanh dương, có dấu tick xanh lá đè lên.
+  - **Nhận được**: thẻ sáng, tiêu đề `CLAIM`. Chấm đỏ trên thẻ là của game (`SampleRedDot`, key `DailyRewardCard`), không thuộc thẻ.
+  - **Khoá**: vẫn hiện `CLAIM` nhưng bất động; thẻ bí ẩn có thể giấu icon (bóng đen / `???`) cho tới khi nhận.
+- Khung thẻ theo độ hiếm (ví dụ RARE xanh lá, EPIC cam) lấy từ cấu hình, không hard-code.
+- Dưới hàng thẻ, `OpenAllRoot` chứa **hai nút OPEN ALL xếp chồng cùng vị trí (440x105); chỉ MỘT nút hiện, chọn bằng bool `openAllUseAds` trong Inspector**:
+  - **Nút ads** (xanh lá, icon video): chữ `OPEN ALL` + tiến độ `X/N`; hiện khi `openAllUseAds` bật, `openAllAdsRequired > 0`, và tuần chưa mở hết.
+  - **Nút IAP** (xanh dương, icon quà): chữ `OPEN ALL` + giá (`RewardHooks.GetIapPrice`, dự phòng `openAllIapPriceText`); hiện khi `openAllUseAds` tắt, `openAllIapProductId` có giá trị, và tuần chưa mở hết.
+  - Khi cả tuần đã mở (`UnopenedCount == 0`) cả hai nút ẩn và hiện label tĩnh `COME BACK TOMORROW`.
 
-- Popup with "DAILY!" title (calendar icon) and a close (X) button top-right.
-- One horizontal row of 7 reward cards. Card anatomy: reward icon (from the row's `Icon`), amount label (formatted, e.g. `+7.5K`, `+200B`), and a state:
-  - **Claimed** — dimmed/blue with a green check overlay.
-  - **Claimable** — bright card with a `CLAIM` header. The red dot on it is host-side (`SampleRedDot`, key `DailyRewardCard`), not part of the card.
-  - **Locked** — `CLAIM` header shown but visually inert; mystery cards may hide the icon (silhouette / `???`) until claimed.
-- Rarity-colored card frames (e.g. green RARE, orange EPIC) driven by config, not hardcoded.
-- Under the row, `OpenAllRoot` holds **two OPEN ALL buttons stacked at the same position (the mockup's single-button spot, 440x105) — at most ONE is visible, picked by the `openAllUseAds` Inspector bool**:
-  - **Ads button** (green, video icon): label `OPEN ALL` + progress `X/N`; shown when `openAllUseAds` is on, `openAllAdsRequired > 0`, and the week is not fully opened.
-  - **IAP button** (blue, gift icon): label `OPEN ALL` + the price (`RewardHooks.GetIapPrice`, falling back to `openAllIapPriceText`); shown when `openAllUseAds` is off, `openAllIapProductId` is set, and the week is not fully opened.
-  - When the whole week is opened (`UnopenedCount == 0`) both buttons hide and a static `COME BACK TOMORROW` label shows.
+## Dữ liệu (dev điền)
 
-## Data (dev-filled)
+Manager của game (mẫu: `Samples~/RewardDemo/Scripts/SampleDailyRewardManager.cs`) giữ `[TableList] public List<DailyRewardRow> rows`, gán `OnClaimed` cho từng row, rồi truyền list cho `DailyRewardPanel.SetInfo(rows)` lúc boot.
 
-The host's own manager (template: `Samples~/RewardDemo/Scripts/SampleDailyRewardManager.cs`) holds `[TableList] public List<DailyRewardRow> rows`, assigns each row's `OnClaimed`, and passes the list to `DailyRewardPanel.SetInfo(rows)` at boot.
+Row (file duy nhất dev điền; vị trí trong list là ngày, `rows[0]` = ngày 1):
+`{ string Key, Sprite Icon, long Amount, AudioClip ClaimSfx, string LabelOverride, bool HideIconUntilClaim, Action<DailyRewardRow> OnClaimed }`. Constructor cho biết thứ tự điền khi tạo bằng code; `LabelOverride` rỗng = không ghi đè.
 
-Row — the one file the dev fills, list position is the day (`rows[0]` = day 1):
-`{ string Key, Sprite Icon, long Amount, AudioClip ClaimSfx, string LabelOverride, bool HideIconUntilClaim, Action<DailyRewardRow> OnClaimed }` — a constructor documents the fill order for code authoring; empty `LabelOverride` = none.
+Kiểm tra nhẹ tay: thiếu `Key`/`Icon`/`Amount` sinh một cảnh báo gộp qua `DailyRewardRow.Warn(rows)` (gọi cả từ `OnValidate` của manager); chỉ list null/rỗng mới ném lỗi. Số row khác số thẻ dựng sẵn thì cảnh báo và gắn theo số nhỏ hơn; thẻ thừa ẩn đi, row thừa không dùng được cho tới khi thêm thẻ trong prefab.
 
-Validation is lenient (decision #24): missing `Key`/`Icon`/`Amount` → one aggregated warning via `DailyRewardRow.Warn(rows)` (call it from your manager's `OnValidate` too); only a null/empty list throws. A row count other than the authored card count warns and binds the min — surplus authored cards stay hidden, surplus rows are unreachable until cards are added in the prefab.
+7 thẻ là **instance dựng sẵn trong prefab**, nối theo thứ tự ngày vào list `cards` của panel; sprite nền của từng thẻ đặt trên Image của chính nó. Muốn đổi layout (hàng ngang như demo hay lưới 3+3+ngày 7 to) chỉ cần sắp lại trong prefab, không sửa C#.
 
-The 7 cards are **pre-authored instances in the prefab**, wired in day order into the panel's `cards` list (decision #28); each card's background sprite is authored on its own Image. Any layout — the demo's horizontal strip or a 3+3+big-day-7 grid — is pure prefab rearrangement, zero C#.
+Thông số trên prefab `DailyRewardPanel`: `openAllUseAds` (bật = nút ads, tắt = nút IAP), `openAllAdsRequired` (0 = tắt nút ads), `openAllIapProductId` ("" = tắt nút IAP), `openAllIapPriceText` (chuỗi hiển thị), `cards` (list thẻ dựng sẵn, thứ tự ngày), `cardStaggerDelay`, `openSfx`, `closeSfx`, `buttonSfx`.
 
-Panel knobs (`[SerializeField]` on the `DailyRewardPanel` prefab): `openAllUseAds` (on = ads button, off = IAP button), `openAllAdsRequired` (0 = ads button off), `openAllIapProductId` ("" = IAP button off), `openAllIapPriceText` (display string), `cards` (the authored card list, day order), `cardStaggerDelay`, `buttonSfx`.
+## Lưu (key PlayerPrefs `NabaReward.Daily`)
 
-## Save (PlayerPrefs key `NabaReward.Daily`)
-
-| Field | Meaning |
+| Field | Ý nghĩa |
 |---|---|
-| `Version` | payload version for migration |
-| `StreakDay` | 0-based index of the next unclaimed day (0..7); `7` = week fully opened, resets to 0 on the next UTC day |
-| `LastClaimDateUtc` | `yyyy-MM-dd` UTC of the last claim; claimable when today (UTC) differs |
-| `OpenAllAdsWatched` | rewarded ads watched toward Open All; reset inside `OpenAll()`, carries across weeks until consumed |
+| `Version` | version payload để migration |
+| `StreakDay` | chỉ số (từ 0) của ngày chưa nhận kế tiếp (0..7); `7` = tuần đã mở hết, về 0 vào ngày UTC kế tiếp |
+| `LastClaimDateUtc` | ngày `yyyy-MM-dd` UTC của lần nhận cuối; nhận được khi hôm nay (UTC) khác |
+| `OpenAllAdsWatched` | số ads đã xem cho Open All; reset trong `OpenAll()`, giữ qua các tuần cho tới khi dùng |
 
-Reset semantics: persists across sessions. Saved on every mutation — there is no pause/quit save pass.
+Giữ qua các phiên. Lưu ngay mỗi lần đổi; không có bước lưu lúc pause/quit.
 
-## API surface — `DailyRewardPanel`, `#region API`
+## API: `DailyRewardPanel`, `#region API`
 
-- `SetInfo(List<DailyRewardRow> rows)` — single init: validate, load save, arm the midnight rollover (`TimeScheduler`), bind the authored cards, bind listeners. Call from `Start()` at boot; the panel stays hidden.
-- `OpenPanel()` / `ClosePanel()` — dev-facing activation (refresh + `Show()` / `Hide()` + `DailyRewardPanelClosedEvent`).
-- Queries: `int DayCount`, `int StreakDay`, `int ClaimableCount` (0 or 1 today — the red-dot query), `int UnopenedCount`, `DailyState GetState(int day)` (guarded; `Locked` before `SetInfo` or out of range).
-- `ResetProfile()` — QA/debug reset.
-- Consts: `SaveKey`, `ProfileVersion`, `OpenAllPlacement`.
+- `SetInfo(List<DailyRewardRow> rows)`: khởi tạo duy nhất: kiểm tra dữ liệu, load lưu, hẹn giờ qua nửa đêm (`TimeScheduler`), gắn thẻ dựng sẵn, gắn listener. Gọi từ `Start()` lúc boot; panel vẫn ẩn.
+- `OpenPanel()` / `ClosePanel()`: bật/tắt cho dev (refresh + `Show()` / `Hide()` + `DailyRewardPanelClosedEvent`).
+- Truy vấn: `int DayCount`, `int StreakDay`, `int ClaimableCount` (0 hoặc 1 hôm nay, dùng cho chấm đỏ), `int UnopenedCount`, `DailyState GetState(int day)` (an toàn; trả `Locked` trước `SetInfo` hoặc ngoài khoảng).
+- `ResetProfile()`: reset cho QA/debug.
+- Hằng: `SaveKey`, `ProfileVersion`, `OpenAllPlacement`.
 
-A claim advances the streak, saves, plays the row's `ClaimSfx`, `Debug.Log`s the grant, then invokes `Row.OnClaimed` — the host grants there; a null callback `LogError`s "was NOT granted". Open All (ads or IAP) claims every remaining day — one `OnClaimed` per day in the same frame, so a batching ceremony shows one popup.
+Một lần nhận: tăng streak, lưu, phát `ClaimSfx` của row, `Debug.Log` phần thưởng, rồi gọi `Row.OnClaimed`; game phát thưởng ở đó, callback null thì `LogError` "was NOT granted". Open All (ads hoặc IAP) nhận mọi ngày còn lại, mỗi ngày một `OnClaimed` trong cùng frame, nên popup gộp chỉ hiện một lần.
 
-## Events / hooks / placements
+## Event / hook / placement
 
-- **Grants: `Row.OnClaimed`** (decision #22) — no grant events exist.
-- `DailyRewardChangedEvent` — notification, raised after claim, reset, ads-progress ticks, and at UTC-midnight rollover (red dots / refresh).
-- `DailyRewardPanelClosedEvent` — notification, raised when the player closes the panel.
-- Hooks used: `PlaySfx`, `ShowRewardedAd` (when `openAllUseAds` is on and `openAllAdsRequired > 0`), `PurchaseIap` (when `openAllUseAds` is off and `openAllIapProductId` is set; contract: the callback must fire on success, failure, and cancel). All optional — unset hooks LogError and proceed (decision #23).
-- Placements: `DailyReward_OpenAll`.
+- **Phát thưởng: `Row.OnClaimed`**; không có event phát thưởng.
+- `DailyRewardChangedEvent`: thông báo, bắn sau khi nhận, reset, tăng tiến độ ads, và lúc qua nửa đêm UTC (chấm đỏ / refresh).
+- `DailyRewardPanelClosedEvent`: thông báo, bắn khi người chơi đóng panel.
+- Hook dùng: `PlaySfx`, `ShowRewardedAd` (khi `openAllUseAds` bật và `openAllAdsRequired > 0`), `PurchaseIap` (khi `openAllUseAds` tắt và có `openAllIapProductId`; callback phải được gọi cả khi thành công, thất bại lẫn huỷ). Đều tuỳ chọn; hook chưa gán chỉ LogError rồi chạy tiếp.
+- Placement: `DailyReward_OpenAll`.
+- Analytics: `trackEventName` mặc định `daily_reward`. Param key bắn ra: `open`, `claim` (giá trị = `Row.Key`), `open_all` (`ads`/`iap`), cùng nhóm `ads_*` / `iap_*` với giá trị là placement / product id. Để trống `trackEventName` là tắt.
 
-## Verification script
+## Checklist kiểm tra
 
-1. Fresh install → day 1 claimable, days 2–7 locked. Claim → `OnClaimed` reaches the host handler (currency changes) and the grant log appears in the Console; card flips to claimed, `ClaimableCount == 0`.
-2. Same day: no further claim possible; button spam grants exactly once.
-3. Advance device/UTC date (or debug override) → next day claimable; host red dots follow `ClaimableCount` / `GetState(day)`.
-4. Kill app / reopen → streak, claimed states, and ads progress restored from PlayerPrefs.
-5. Open/close panel repeatedly → no duplicated listeners, no double grants.
-6. Ads Open All: with `openAllAdsRequired = 3`, click the ads button 3 times → label 0/3 → 1/3 → 2/3 → the third completed ad claims all remaining days (one audit log + `OnClaimed` per day), buttons hide, `COME BACK TOMORROW` shows.
-7. IAP Open All: turn `openAllUseAds` off, click the IAP button → `RewardHooks.PurchaseIap` runs; `cb(true)` claims all remaining days, `cb(false)` logs and changes nothing, button stays clickable.
-8. Claim today's card first, then Open All → only the remaining days grant (no double grant).
-9. Claim day 7 singly → whole week renders claimed, Open All buttons hide same-day; next UTC day resets to day 1.
-10. Active mode's config empty (`openAllUseAds` on with `openAllAdsRequired = 0`, or off with no product id) → no Open All buttons plus one config warning, single-card claim unaffected; unset ad/IAP hooks only LogError.
-11. Null-button pass: disable/delete `openAllAdsButton`, `openAllIapButton`, `comeBackLabel`, a card's sub-widgets, or a whole authored card instance (its `cards` entry goes null) → no exception, panel still opens, remaining claims still work.
-12. Clear one row's `OnClaimed` → claiming it logs `was NOT granted` and grants nothing; everything else unaffected.
+1. Cài mới: ngày 1 nhận được, ngày 2-7 khoá. Nhận: `OnClaimed` vào hàm của game (tiền đổi) và Console có log phát thưởng; thẻ chuyển sang đã nhận, `ClaimableCount == 0`.
+2. Cùng ngày: không nhận thêm được; bấm liên tục chỉ phát đúng một lần.
+3. Đổi ngày máy/UTC (hoặc debug): ngày kế nhận được; chấm đỏ của game theo `ClaimableCount` / `GetState(day)`.
+4. Tắt app mở lại: streak, trạng thái thẻ và tiến độ ads khôi phục từ PlayerPrefs.
+5. Mở/đóng panel nhiều lần: không trùng listener, không phát đôi.
+6. Open All bằng ads: `openAllAdsRequired = 3`, bấm nút ads 3 lần: label 0/3, 1/3, 2/3; ads thứ ba xong thì nhận hết các ngày còn lại (mỗi ngày một log + một `OnClaimed`), nút ẩn, hiện `COME BACK TOMORROW`.
+7. Open All bằng IAP: tắt `openAllUseAds`, bấm nút IAP: `RewardHooks.PurchaseIap` chạy; `cb(true)` nhận hết, `cb(false)` log và không đổi gì, nút vẫn bấm được.
+8. Nhận thẻ hôm nay trước rồi Open All: chỉ các ngày còn lại được phát (không phát đôi).
+9. Nhận riêng ngày 7: cả tuần hiện đã nhận, nút Open All ẩn ngay trong ngày; ngày UTC kế về ngày 1.
+10. Cấu hình của chế độ đang chọn rỗng (`openAllUseAds` bật mà `openAllAdsRequired = 0`, hoặc tắt mà không có product id): không có nút Open All và một cảnh báo cấu hình, nhận từng thẻ vẫn bình thường; hook chưa gán chỉ LogError.
+11. Thử xoá nút: tắt/xoá `openAllAdsButton`, `openAllIapButton`, `comeBackLabel`, thành phần con của một thẻ, hay cả một thẻ dựng sẵn (phần tử `cards` thành null): không lỗi, panel vẫn mở, các thẻ khác vẫn nhận được.
+12. Xoá `OnClaimed` của một row: nhận row đó log `was NOT granted` và không phát gì; phần còn lại không ảnh hưởng.
 
-## Decisions
+## Quy tắc đã chốt
 
-- **OPEN ALL (reworked 2026-08-20; mode switch made explicit later the same day):** Open All claims **every remaining day of the displayed week at once**, gated behind ads or IAP. Two buttons share the mockup's single-button position and **only one shows at a time, picked by the `openAllUseAds` Inspector bool (on = ads, off = IAP)** — never both; the inactive mode's flow is also refused, and the earlier "IAP config wins over ads" data rule is retired. The package itself runs the ad flow / calls the IAP hook — the dev supplies only `openAllUseAds`, `openAllAdsRequired`, `openAllIapProductId`, `openAllIapPriceText`. The visible button stays available after today's card was tapped; it hides only when the week is fully opened.
-- **Post-day-7 (reworked 2026-08-20):** claiming day 7 (or Open All) sets `StreakDay = 7` — the whole week renders claimed for the rest of the day and Open All is gone. The reset to day 1 happens on the next UTC day (`ResetWeekIfElapsed`). The old `% 7` wrap was an exploit: it made the week look unclaimed again immediately.
-- **Ads progress:** `OpenAllAdsWatched` persists and carries across week cycles until consumed by `OpenAll()`; it is not reset at rollover.
-- **Streak break:** missing a day does not reset the streak. The player simply resumes at the next unclaimed day. `ClaimableCount` is 1 whenever `StreakDay < DayCount` and `LastClaimDateUtc != today (UTC)`.
+- **OPEN ALL:** nhận **mọi ngày còn lại của tuần đang hiện trong một lần**, mở bằng ads hoặc IAP. Hai nút cùng vị trí, **chỉ một nút hiện, chọn bằng `openAllUseAds` (bật = ads, tắt = IAP)**, không bao giờ cả hai; luồng của chế độ không chọn cũng bị từ chối. Package tự chạy luồng ads / gọi hook IAP; dev chỉ điền `openAllUseAds`, `openAllAdsRequired`, `openAllIapProductId`, `openAllIapPriceText`. Nút vẫn dùng được sau khi đã nhận thẻ hôm nay; chỉ ẩn khi tuần đã mở hết.
+- **Sau ngày 7:** nhận ngày 7 (hoặc Open All) đặt `StreakDay = 7`; cả tuần hiện đã nhận tới hết ngày và Open All biến mất. Về ngày 1 vào ngày UTC kế tiếp (`ResetWeekIfElapsed`). Nếu dùng `% 7` sẽ bị lợi dụng: tuần trông như chưa nhận ngay lập tức.
+- **Tiến độ ads:** `OpenAllAdsWatched` giữ qua các tuần cho tới khi `OpenAll()` dùng; không reset lúc qua ngày.
+- **Đứt streak:** bỏ lỡ một ngày không reset streak. Người chơi nhận tiếp ngày chưa nhận kế tiếp. `ClaimableCount` là 1 khi `StreakDay < DayCount` và `LastClaimDateUtc != hôm nay (UTC)`.
 
-## Shipped deviations from the mockup
+## Ghi chú layout
 
-- The ASMR-Tower art set has no gem icon, so the 7-day table is built from the icons that exist (money / lucky-spin / no-ads); the Open All buttons use `checkpoint_0002_button-green` / `checkpoint_0003_button-blue` 9-sliced to 440x105 (~the mockup's button proportions).
-- The mockup shows a single OPEN ALL button; the panel matches that — one button visible at the mockup position, its ads/IAP variant picked by config (decision above).
-- Locked cards render at full opacity like the mockup; the card itself signals claimable with a scale pulse (the red dot on top of it belongs to the host).
+- Bộ art mẫu không có icon gem, nên bảng 7 ngày dựng từ các icon có sẵn (tiền / lucky-spin / no-ads); nút Open All dùng `checkpoint_0002_button-green` / `checkpoint_0003_button-blue` cắt 9-slice về 440x105.
+- Mỗi lúc chỉ một nút OPEN ALL hiện, dạng ads/IAP do cấu hình quyết định.
+- Thẻ khoá hiện đủ độ đậm; thẻ nhận được tự báo bằng nhịp phóng to (chấm đỏ trên thẻ là của game).

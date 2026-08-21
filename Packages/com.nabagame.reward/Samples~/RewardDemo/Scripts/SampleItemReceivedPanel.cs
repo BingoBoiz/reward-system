@@ -55,6 +55,7 @@ namespace NabaGame.Reward.Sample
         [SerializeField, Range(0f, 1f)] float dimAlpha = 0.95f;
         [SerializeField] AudioClip openSfx;
         [SerializeField] AudioClip landSfx;
+        [SerializeField] AudioClip closeSfx;
 
         enum Phase : byte { Idle, Playing, AwaitTap }
 
@@ -155,6 +156,7 @@ namespace NabaGame.Reward.Sample
 
         public void ClosePanel()
         {
+            PlayCue(closeSfx);
             CancelCeremony();
             phase = Phase.Idle;
             Hide();

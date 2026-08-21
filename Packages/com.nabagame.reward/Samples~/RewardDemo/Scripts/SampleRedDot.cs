@@ -100,7 +100,7 @@ namespace NabaGame.Reward.Sample
 
         bool IsOn()
         {
-            SampleUIRoot ui = SampleUIRoot.Instance;
+            SampleUIManager ui = SampleUIManager.Instance;
             if (!ui) return false;
 
             switch (key)

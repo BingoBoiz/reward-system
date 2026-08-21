@@ -1,93 +1,92 @@
 # Online Reward
 
-**Status:** shipped in `0.6.0` (Phase 3); **panel-owned rework shipped in `0.8.0` (2026-08-20, decisions #21–#27)** — the package `OnlineRewardManager` is gone, `OnlineRewardPanel` owns everything, the host writes a `SampleOnlineRewardManager`-style manager. The package version is **session-scoped** (decision #9 in ARCHITECTURE.md).
+`OnlineRewardPanel` lo toàn bộ tính năng; game viết một manager kiểu `SampleOnlineRewardManager`. Lưới **theo phiên chơi**. Tài liệu này là chuẩn cho hành vi và dữ liệu.
 
-**Mockup:** `Assets/_ASMR-Tower/Art/preview/playtime reward.jpg` (host repo) — authoritative for layout/visuals (`../RefUI/online-reward.png` is still awaiting the exported image); this doc is authoritative for behavior/data.
+## Là gì
 
-## What it is
+Lưới phần thưởng mở khoá lần lượt theo thời gian trong lúc người chơi còn mở game. Xem rewarded ad để bật tua nhanh x2/x5 hoặc mở cả lưới một lần. Thoát game là mất tiến độ: "Reward reset if you leave!".
 
-A grid of rewards that unlock one after another on timers while the player keeps the game open. Watching rewarded ads activates x2/x5 time multipliers, or opens the whole grid at once. Leaving the game resets the run — "Reward reset if you leave!".
+## Giao diện
 
-## UI spec (from mockup)
+- Popup tiêu đề "REWARDS!" (icon quà), phụ đề "Reward reset if you leave!", nút đóng (X) góc trên phải, bảng tối trên nền mờ.
+- Lưới thẻ (mẫu: **3 hàng x 6 cột = 18**; số row quyết định lưới qua `GridLayoutGroup`). Thẻ gồm: khung màu (đổi theo cột từ `frameSprites`), label số lượng trên, icon giữa, đếm ngược `mm:ss` (hoặc `h:mm:ss`) dưới.
+  - **Nhận được**: chữ `CLAIM!`, nhấp nháy. Chấm đỏ trên ô là của game (`SampleRedDot`, key `OnlineRewardCell`), không thuộc ô.
+  - **Đang đếm**: mờ, hiện thời gian còn lại.
+  - **Đã nhận**: dấu tick, icon tối đi, không bấm được.
+- Nút dưới: `OPEN ALL`, `X2 SPEED` / `X5 SPEED` (cầu vồng, icon tua nhanh, badge ads; mỗi nút hiện đếm `n/required` khi cần hơn 1 ads). Khi tua nhanh đang bật, nút hiện thời gian buff còn lại và không bấm được; timer các ô đếm từng giây hiển thị (năm nhịp mỗi giây thật ở x5), không nhảy số.
+- `OPEN ALL` chiếm một chỗ với **hai nút dựng sẵn xếp chồng cùng vị trí**: `OpenAllAdsButton` (xanh lá, icon video, đếm `n/required`) và `OpenAllIapButton` (xanh dương, icon quà, label giá). Chỉ một nút hiện, chọn bằng `openAllUseAds`; cùng kiểu với OPEN ALL của Daily Reward.
 
-- Popup titled "REWARDS!" (gift icon) with subtitle "Reward reset if you leave!", close (X) top-right, dark board over a dimmed screen.
-- Grid of reward cards (mockup and sample default: **3 rows × 6 columns = 18**; row count drives the grid via `GridLayoutGroup`). Card anatomy: colored frame (per-column variety from `frameSprites`), amount label on top, reward icon center, countdown `mm:ss` (or `h:mm:ss`) below.
-  - **Claimable** — `CLAIM!` label, pulsing highlight. The red dot on the cell is host-side (`SampleRedDot`, key `OnlineRewardCell`), not part of the cell.
-  - **Counting** — dimmed with its remaining time.
-  - **Claimed** — check mark, icon tinted down, non-interactable.
-- Bottom buttons: `OPEN ALL`, `X2 SPEED` / `X5 SPEED` (rainbow, fast-forward icon, ad badge; each shows an `n/required` ad counter when its requirement is above 1). While a speed-up is active its button shows the remaining buff time and is non-interactable; slot timers keep counting one displayed second at a time (five ticks per real second at ×5), never skipping digits.
-- `OPEN ALL` occupies one spot with **two authored buttons stacked at the same position** — `OpenAllAdsButton` (green, video icon, `n/required` counter) and `OpenAllIapButton` (blue, gift icon, price label). Exactly one is visible, picked by `openAllUseAds`; the same shape as Daily Reward's OPEN ALL.
+## Dữ liệu (dev điền)
 
-## Data (dev-filled)
+Manager của game (mẫu: `Samples~/RewardDemo/Scripts/SampleOnlineRewardManager.cs`) giữ `[TableList] public List<OnlineRewardRow> rows`, gán `OnClaimed` cho từng row, rồi truyền list cho `OnlineRewardPanel.SetInfo(rows)` **lúc boot**; thời gian chơi tính từ lệnh đó, nên không được khởi tạo muộn lúc mở lần đầu.
 
-The host's own manager (template: `Samples~/RewardDemo/Scripts/SampleOnlineRewardManager.cs`) holds `[TableList] public List<OnlineRewardRow> rows`, assigns each row's `OnClaimed`, and passes the list to `OnlineRewardPanel.SetInfo(rows)` **at boot** — playtime accrues from that call, so never init lazily on first open.
+Row (vị trí trong list là ô: `rows[0]` mở trước):
+`{ string Key, Sprite Icon, long Amount, int UnlockAfterSeconds, AudioClip ClaimSfx, Action<OnlineRewardRow> OnClaimed }`. Mốc thời gian cộng dồn trong phiên, phải tăng dần; constructor cho biết thứ tự điền.
 
-Row — list position is the slot (`rows[0]` unlocks first):
-`{ string Key, Sprite Icon, long Amount, int UnlockAfterSeconds, AudioClip ClaimSfx, Action<OnlineRewardRow> OnClaimed }` — cumulative session-time gates, strictly increasing; a constructor documents the fill order.
+Kiểm tra: thiếu `Key`/`Icon`/`Amount` sinh một cảnh báo gộp qua `OnlineRewardRow.Warn(rows)`; list rỗng hoặc `UnlockAfterSeconds` không tăng dần thì ném lỗi (máy timer không chạy được).
 
-Validation: missing `Key`/`Icon`/`Amount` → one aggregated warning via `OnlineRewardRow.Warn(rows)`; an empty list or non-increasing `UnlockAfterSeconds` throws (the timer machine cannot run with it).
+Thông số trên prefab `OnlineRewardPanel`, tab Config:
 
-Panel knobs (`[SerializeField]` on the `OnlineRewardPanel` prefab), Config tab:
-
-| Knob | Default | Meaning |
+| Thông số | Mặc định | Ý nghĩa |
 |---|---|---|
-| `x2DurationSeconds` | 120 | how long the x2 buff runs |
-| `x2AdsRequired` | 1 | ads needed to activate x2 (counter persisted, shown as `n/required` when above 1) |
-| `x5DurationSeconds` | 120 | how long the x5 buff runs |
-| `x5AdsRequired` | 2 | ads needed to activate x5 |
-| `openAllUseAds` | on | on shows the ads OPEN ALL button, off shows the IAP one |
-| `openAllAdsRequired` | 1 | ads needed for OPEN ALL when `openAllUseAds` is on |
-| `openAllIapProductId` | "" | IAP product for OPEN ALL when `openAllUseAds` is off |
-| `openAllIapPriceText` | "" | fallback price on the IAP button; `RewardHooks.GetIapPrice` wins when the store answers |
+| `x2DurationSeconds` | 120 | buff x2 kéo dài bao lâu |
+| `x2AdsRequired` | 1 | số ads để bật x2 (đếm được lưu, hiện `n/required` khi lớn hơn 1) |
+| `x5DurationSeconds` | 120 | buff x5 kéo dài bao lâu |
+| `x5AdsRequired` | 2 | số ads để bật x5 |
+| `openAllUseAds` | bật | bật hiện nút OPEN ALL ads, tắt hiện nút IAP |
+| `openAllAdsRequired` | 1 | số ads cho OPEN ALL khi `openAllUseAds` bật |
+| `openAllIapProductId` | "" | product IAP cho OPEN ALL khi `openAllUseAds` tắt |
+| `openAllIapPriceText` | "" | giá dự phòng trên nút IAP; `RewardHooks.GetIapPrice` thắng khi store trả lời |
 
-FX tab: `cellStaggerDelay`, `buttonSfx`. The sample fills 18 rows on `Prefabs/SampleOnlineRewardManager.prefab`.
+Tab FX: `cellStaggerDelay`, `openSfx`, `closeSfx`, `unlockSfx`, `speedUpSfx`, `buttonSfx`. Sample điền 18 row trên `Prefabs/SampleOnlineRewardManager.prefab`.
 
-`WarnConfig()` runs inside `SetInfo` and warns (never throws) when the active mode's config is empty: `x2AdsRequired`/`x5AdsRequired` at or below 0 turns that booster off, `openAllUseAds` on with `openAllAdsRequired` at or below 0 turns OPEN ALL off, `openAllUseAds` off with an empty `openAllIapProductId` does the same, and a set product id with an empty price text warns on its own.
+`WarnConfig()` chạy trong `SetInfo` và cảnh báo (không ném lỗi) khi cấu hình của chế độ đang chọn rỗng: `x2AdsRequired`/`x5AdsRequired` nhỏ hơn hoặc bằng 0 thì tắt booster đó, `openAllUseAds` bật mà `openAllAdsRequired` nhỏ hơn hoặc bằng 0 thì tắt OPEN ALL, `openAllUseAds` tắt mà `openAllIapProductId` rỗng cũng vậy, có product id mà chuỗi giá rỗng thì cảnh báo riêng.
 
-## State & save
+## Trạng thái và lưu
 
-Session-scoped by design — the grid state lives in memory only:
+Theo phiên có chủ đích; trạng thái lưới chỉ nằm trong bộ nhớ:
 
-- Session elapsed time uses the **baseline pattern** (ARCHITECTURE.md §5): `accumulated + (RewardClock.MonotonicSeconds - baseline) * activeMultiplier`, flushed at the old rate before any multiplier change; no per-frame accumulation, no `Update()` polling. The nearest locked slot is armed via `TimeScheduler` (deadline scaled by the active multiplier); a second handle arms the earliest buff expiry.
-- **Focus loss flushes + saves; focus gain resets the baseline** so suspended wall-clock time never counts as playtime. The panel listens to the static `Application.focusChanged`, not `OnApplicationPause` — the static event fires even when a host UI framework deactivates the hidden panel GameObject. Buff end-times are wall-clock, so buffs may expire while suspended. App kill resets the whole grid (decision: backgrounding does not end the session, only the kill does). In-editor, alt-tab counts as focus loss — alt-tabbed time does not accrue.
-- When every slot is claimed the cycle resets (claimed cleared, elapsed time zeroed, timers restart) so the panel never goes dead — matching legacy.
-- PlayerPrefs key `NabaReward.Online` (Version 1) persists only `Version`, `SpeedUpX2Ads`, `SpeedUpX5Ads`, and `OpenAllAdsWatched` — the partial ad-watch counters survive sessions; buffs and grid state do not. `ResetSession()` clears all three.
+- Thời gian chơi trong phiên dùng **mốc baseline** (ARCHITECTURE.md mục 5): `accumulated + (RewardClock.MonotonicSeconds - baseline) * activeMultiplier`, chốt theo hệ số cũ trước khi đổi hệ số; không cộng mỗi frame, không `Update()`. Ô khoá gần nhất được hẹn qua `TimeScheduler` (mốc chia theo hệ số đang bật); một handle thứ hai hẹn lúc buff hết sớm nhất.
+- **Mất focus thì chốt + lưu; lấy lại focus thì đặt lại baseline** để thời gian app bị treo không tính là thời gian chơi. Panel nghe `Application.focusChanged` tĩnh, không nghe `OnApplicationPause`; event tĩnh vẫn bắn kể cả khi UI framework của game deactivate GameObject panel đang ẩn. Mốc hết buff là giờ thực, nên buff có thể hết trong lúc app treo. Tắt app reset cả lưới (chạy nền không kết thúc phiên, chỉ tắt app mới kết thúc). Trong Editor, alt-tab tính là mất focus; thời gian alt-tab không cộng.
+- Khi mọi ô đã nhận, chu kỳ reset (xoá đã nhận, thời gian về 0, timer chạy lại) để panel không bao giờ chết.
+- Key PlayerPrefs `NabaReward.Online` (Version 1) chỉ lưu `Version`, `SpeedUpX2Ads`, `SpeedUpX5Ads` và `OpenAllAdsWatched`; số ads đã xem dở sống qua các phiên, buff và lưới thì không. `ResetSession()` xoá cả ba.
 
-## API surface — `OnlineRewardPanel`, `#region API`
+## API: `OnlineRewardPanel`, `#region API`
 
-- `SetInfo(List<OnlineRewardRow> rows)` — single init: validate, load save, start accrual, arm unlock/buff deadlines, build cells, bind listeners. **Call from `Start()` at boot.**
-- `OpenPanel()` / `ClosePanel()` — dev-facing activation. A UniTask loop refreshes countdown labels and booster buttons only while visible, waking at the next displayed-digit boundary (`RewardClock.MsUntilNextTick`, `DelayType.Realtime`) so a ×5 buff counts 59, 58, 57… instead of skipping; every state change restarts the cadence.
-- Queries: `int SlotCount`, `bool HasClaimable` (the red-dot query), `OnlineSlotState GetState(int slot)` (guarded; `Locked` before `SetInfo` or out of range).
-- `ResetSession()` — QA/debug reset.
-- Consts: `SaveKey`, `ProfileVersion`, `SpeedUpX2`, `SpeedUpX5`, `OpenAllPlacement`, `X2Placement`, `X5Placement`.
+- `SetInfo(List<OnlineRewardRow> rows)`: khởi tạo duy nhất: kiểm tra dữ liệu, load lưu, bắt đầu tính giờ, hẹn mốc mở khoá/buff, dựng ô, gắn listener. **Gọi từ `Start()` lúc boot.**
+- `OpenPanel()` / `ClosePanel()`: bật/tắt cho dev. Một vòng lặp UniTask refresh label đếm ngược và nút booster chỉ khi đang hiện, thức dậy đúng mốc số hiển thị đổi (`RewardClock.MsUntilNextTick`, `DelayType.Realtime`) nên buff x5 đếm 59, 58, 57... thay vì nhảy số; mỗi lần đổi trạng thái nhịp được đặt lại.
+- Truy vấn: `int SlotCount`, `bool HasClaimable` (dùng cho chấm đỏ), `OnlineSlotState GetState(int slot)` (an toàn; trả `Locked` trước `SetInfo` hoặc ngoài khoảng).
+- `ResetSession()`: reset cho QA/debug.
+- Hằng: `SaveKey`, `ProfileVersion`, `SpeedUpX2`, `SpeedUpX5`, `OpenAllPlacement`, `X2Placement`, `X5Placement`.
 
-A claim marks the slot, plays the row's `ClaimSfx`, `Debug.Log`s the grant, then invokes `Row.OnClaimed` — the host grants there. OPEN ALL claims every unclaimed slot in one frame — one `OnClaimed` per slot, so a batching ceremony shows one popup — gated by either `openAllAdsRequired` rewarded ads (counter persisted) or the `openAllIapProductId` purchase, whichever `openAllUseAds` selects; the inactive mode's flow is refused outright. X2/X5 run the ad flow (`RewardFlow`; each needs its own `x2AdsRequired`/`x5AdsRequired` ads, counters persisted), stack to ×7, and expire on wall-clock deadlines.
+Một lần nhận: đánh dấu ô, phát `ClaimSfx` của row, `Debug.Log` phần thưởng, rồi gọi `Row.OnClaimed`; game phát thưởng ở đó. OPEN ALL nhận mọi ô chưa nhận trong một frame (mỗi ô một `OnClaimed`, nên popup gộp hiện một lần), mở bằng `openAllAdsRequired` rewarded ads (đếm được lưu) hoặc mua `openAllIapProductId`, tuỳ `openAllUseAds`; luồng của chế độ không chọn bị từ chối. X2/X5 chạy luồng ads (`RewardFlow`; mỗi nút cần đủ `x2AdsRequired`/`x5AdsRequired` ads, đếm được lưu), cộng dồn thành x7, hết theo mốc giờ thực.
 
-## Events / hooks / placements
+## Event / hook / placement
 
-- **Grants: `Row.OnClaimed`** (decision #22) — raised per claimed slot (single claim and each slot of OPEN ALL, same frame); no `OnlineRewardClaimedEvent` exists.
-- `OnlineRewardChangedEvent` — notification, raised on slot unlock, claim, cycle reset, and multiplier change.
-- `OnlineRewardSpeedUpEvent { int Multiplier; }` — notification, raised when a speed-up activates after the ad flow.
-- `OnlineRewardPanelClosedEvent` — notification, raised when the player closes the panel.
-- Hooks used: `PlaySfx`, `ShowRewardedAd`, `PurchaseIap` (only when `openAllUseAds` is off). Optional — unset hooks LogError and proceed (decision #23).
-- Placements: `OnlineReward_x2Speed`, `OnlineReward_x5Speed`, `OnlineReward_OpenAll`.
+- **Phát thưởng: `Row.OnClaimed`**, gọi cho từng ô (nhận lẻ và từng ô của OPEN ALL, cùng frame); không có `OnlineRewardClaimedEvent`.
+- `OnlineRewardChangedEvent`: thông báo, bắn khi mở khoá ô, nhận, reset chu kỳ, đổi hệ số.
+- `OnlineRewardSpeedUpEvent { int Multiplier; }`: thông báo, bắn khi tua nhanh bật sau luồng ads.
+- `OnlineRewardPanelClosedEvent`: thông báo, bắn khi người chơi đóng panel.
+- Hook dùng: `PlaySfx`, `ShowRewardedAd`, `PurchaseIap` (chỉ khi `openAllUseAds` tắt). Tuỳ chọn; hook chưa gán chỉ LogError rồi chạy tiếp.
+- Placement: `OnlineReward_x2Speed`, `OnlineReward_x5Speed`, `OnlineReward_OpenAll`.
+- Analytics: `trackEventName` mặc định `online_reward`. Param key bắn ra: `open`, `claim` (giá trị = `Row.Key`), `speed_up` (`x2`/`x5`), `open_all` (`ads`/`iap`), cùng nhóm `ads_*` / `iap_*` với giá trị là placement / product id. Để trống `trackEventName` là tắt.
 
-## Verification script
+## Checklist kiểm tra
 
-1. Fresh session → slot 1 counts down from its row time; slots unlock strictly in order; `CLAIM!` appears on unlock and claiming reaches the host's `OnClaimed` handler (currency changes, grant log in Console, ceremony popup).
-2. X2 then X5: timers visibly accelerate; x2+x5 stack to ×7; each booster needs its configured ad count (`n/required` counter, persisted, hidden when the requirement is 1); ad skip leaves the multiplier unchanged; editor path grants immediately.
-3. Button spam on claim and speed buttons → single grant / single ad request (`RewardFlow` busy guard); a skipped, throttled or unavailable ad raises a `ShowMessage` notice and leaves the counter untouched (ARCHITECTURE §8).
-4. OPEN ALL with `openAllUseAds` on → `openAllAdsRequired` ads (counter climbs on the button), every unclaimed slot claimed in one frame (one batched ceremony), then the cycle resets and the counter clears. Flip `openAllUseAds` off with a product id set → the blue IAP button with its price replaces the green one, a cancelled purchase grants nothing and logs, a successful one opens all.
-5. Kill app / reopen → grid reset to the start (session-scoped), console clean.
-6. Background / drop focus for minutes — **with the panel hidden and even with `disableWhenHidden` ticked** — return → timers never jump from suspended wall-clock time (`Application.focusChanged` flush).
-7. Open/close panel repeatedly → no duplicated listeners; the countdown loop stops when hidden, including via a bare `Hide()`.
-8. Null-button pass: disable/delete `openAllAdsButton`, `openAllIapButton`, either open-all label, a booster's `button`/`label`/`adsCountLabel`, or `cellTemplate` → no exception, no stuck state (missing template = empty panel + one error).
+1. Phiên mới: ô 1 đếm ngược từ mốc của row; các ô mở đúng thứ tự; `CLAIM!` hiện khi mở và nhận thì vào `OnClaimed` của game (tiền đổi, có log, popup nhận quà).
+2. X2 rồi X5: timer tăng tốc rõ; x2+x5 cộng thành x7; mỗi booster cần đủ số ads đã cấu hình (đếm `n/required`, được lưu, ẩn khi chỉ cần 1); bỏ qua ads thì hệ số không đổi; trong Editor bật ngay.
+3. Bấm liên tục nút nhận và nút tua: chỉ một lần phát / một yêu cầu ads (`RewardFlow` chặn); ads bị bỏ qua, bị giới hạn hay không có thì có thông báo `ShowMessage` và số đếm không đổi (ARCHITECTURE mục 8).
+4. OPEN ALL với `openAllUseAds` bật: xem đủ `openAllAdsRequired` ads (số đếm tăng trên nút), mọi ô chưa nhận được nhận trong một frame (một popup gộp), rồi chu kỳ reset và số đếm về 0. Tắt `openAllUseAds` và có product id: nút IAP xanh dương kèm giá thay nút xanh lá, huỷ mua thì không phát và có log, mua thành công thì mở hết.
+5. Tắt app mở lại: lưới về đầu (theo phiên), console sạch.
+6. Chạy nền / mất focus vài phút, **panel đang ẩn và kể cả khi tick `disableWhenHidden`**, rồi quay lại: timer không nhảy vì thời gian treo (`Application.focusChanged` chốt).
+7. Mở/đóng panel nhiều lần: không trùng listener; vòng đếm ngược dừng khi ẩn, kể cả gọi `Hide()` trần.
+8. Thử xoá nút: tắt/xoá `openAllAdsButton`, `openAllIapButton`, label open-all bất kỳ, `button`/`label`/`adsCountLabel` của một booster, hay `cellTemplate`: không lỗi, không kẹt (thiếu template = panel trống + một lỗi log).
 
-## Resolved decisions (2026-08-20)
+## Quy tắc đã chốt
 
-- End-of-session trigger: **app kill only** — backgrounding pauses accrual (baseline reset on focus regained) but keeps the grid.
-- x2/x5 stacking: **legacy rule kept** — both active means playtime ticks ×7.
-- X5 ads: **2 ads required** (`x5AdsRequired`, serialized); the partial counter persists in `NabaReward.Online`.
-- X2 ads: **serialized like X5** (`x2AdsRequired`, default 1) instead of the hard-coded single ad; its partial counter persists too, and the `n/required` badge hides itself at a requirement of 1.
-- OPEN ALL: **ads or IAP, same as Daily Reward** — `openAllUseAds` picks the mode, the prefab authors both buttons at the same spot and the panel shows exactly one (placement `OnlineReward_OpenAll`, product `openAllIapProductId`). Locked slots are included either way.
-- Pause handling: **`Application.focusChanged` replaces `OnApplicationPause`** (0.8.0) — Unity messages die on a deactivated GameObject; the static event does not, so the no-suspended-playtime promise holds regardless of how the host hides the panel.
+- Kết thúc phiên: **chỉ khi tắt app**; chạy nền tạm dừng tính giờ (đặt lại baseline khi lấy lại focus) nhưng giữ lưới.
+- Cộng dồn x2/x5: cả hai cùng bật thì thời gian chơi chạy x7.
+- Ads cho X5: **cần 2 ads** (`x5AdsRequired`, serialized); số đếm dở được lưu trong `NabaReward.Online`.
+- Ads cho X2: **serialized như X5** (`x2AdsRequired`, mặc định 1) thay vì cố định một ads; số đếm dở cũng được lưu, badge `n/required` tự ẩn khi chỉ cần 1.
+- OPEN ALL: **ads hoặc IAP, giống Daily Reward**; `openAllUseAds` chọn chế độ, prefab dựng sẵn cả hai nút cùng chỗ và panel chỉ hiện một (placement `OnlineReward_OpenAll`, product `openAllIapProductId`). Ô đang khoá cũng được nhận.
+- Xử lý pause: **`Application.focusChanged` thay cho `OnApplicationPause`**: message của Unity chết trên GameObject bị deactivate; event tĩnh thì không, nên lời hứa "không tính thời gian treo" đúng bất kể game ẩn panel kiểu gì.

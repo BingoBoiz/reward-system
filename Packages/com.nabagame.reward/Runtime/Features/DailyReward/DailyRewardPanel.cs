@@ -29,6 +29,7 @@ namespace NabaGame.Reward
         [SerializeField, TabGroup("Tabs", "Config")] int openAllAdsRequired; // số ads để mở toàn bộ
         [SerializeField, TabGroup("Tabs", "Config")] string openAllIapProductId = ""; // id gói IAP mở toàn bộ
         [SerializeField, TabGroup("Tabs", "Config")] string openAllIapPriceText = ""; // giá hiển thị trên nút IAP
+        [SerializeField, TabGroup("Tabs", "Config")] string trackEventName = "daily_reward"; // tên event analytics, để trống là tắt
 
         [SerializeField, TabGroup("Tabs", "UI")] Button closeButton; // nút đóng panel
         [SerializeField, TabGroup("Tabs", "UI")] GameObject comeBackLabel; // chữ hiện khi nhận hết
@@ -39,6 +40,8 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/UI/Cards")] List<DailyRewardCard> cards = new (); // thẻ ngày xếp sẵn theo thứ tự
 
         [SerializeField, TabGroup("Tabs", "FX")] float cardStaggerDelay = 0.04f; // trễ hiện lần lượt từng thẻ
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip openSfx; // tiếng lúc mở panel
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip closeSfx; // tiếng lúc đóng panel
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
         RewardFlow flow;
@@ -54,7 +57,7 @@ namespace NabaGame.Reward
         {
             if (hostRows == null || hostRows.Count == 0) throw new InvalidOperationException("DailyRewardPanel: rows is null or empty");
             rows = hostRows;
-            flow = new RewardFlow(this);
+            flow = new RewardFlow(this, trackEventName);
             DailyRewardRow.Warn(rows, this);
             WarnConfig();
 
@@ -85,13 +88,16 @@ namespace NabaGame.Reward
             }
 
             Show();
+            if (openSfx) RewardHooks.PlaySfx(openSfx);
             RefreshAll();
+            RewardTrack.Send(trackEventName, RewardTrack.Open, "1");
             for (int i = 0; i < cards.Count && i < rows.Count; i++) if (cards[i]) cards[i].PlayIntro(i * cardStaggerDelay);
         }
 
         public void ClosePanel()
         {
-            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            if (closeSfx) RewardHooks.PlaySfx(closeSfx);
+            else if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             Hide();
             EventManager.Instance.Raise(new DailyRewardPanelClosedEvent());
         }
@@ -100,13 +106,11 @@ namespace NabaGame.Reward
 
         public int StreakDay => Profile == null ? 0 : Profile.StreakDay;
 
-        // panel không vẽ chấm đỏ; host tự vẽ (xem SampleRedDot)
-        // red-dot query: 1 while today's card is still unclaimed
+        // red-dot query: 1 while today's card is still unclaimed; the panel draws no dot itself, the host does (see SampleRedDot)
         public int ClaimableCount => Profile != null && Profile.StreakDay < DayCount && Profile.LastClaimDateUtc != RewardClock.TodayUtc ? 1 : 0;
 
         public int UnopenedCount => DayCount - StreakDay;
 
-        // trạng thái từng ngày cho host query
         public DailyState GetState(int day)
         {
             if (Profile == null || day < 0 || day >= rows.Count) return DailyState.Locked;
@@ -143,6 +147,7 @@ namespace NabaGame.Reward
             if (openAllUseAds && openAllAdsRequired <= 0) Debug.LogWarning($"[DailyRewardPanel] openAllUseAds is on but openAllAdsRequired is {openAllAdsRequired}, OPEN ALL stays off", this);
             if (!openAllUseAds && !OpenAllIapEnabled) Debug.LogWarning("[DailyRewardPanel] openAllUseAds is off but openAllIapProductId is empty, OPEN ALL stays off", this);
             if (!openAllUseAds && OpenAllIapEnabled && string.IsNullOrEmpty(openAllIapPriceText)) Debug.LogWarning("[DailyRewardPanel] openAllIapProductId is set but openAllIapPriceText is empty", this);
+            if (!string.IsNullOrEmpty(trackEventName) && !RewardTrack.IsValidEventName(trackEventName)) Debug.LogWarning($"[DailyRewardPanel] trackEventName '{trackEventName}' is not a valid analytics event name, the events will be dropped", this);
         }
 
         void ScheduleRollover()
@@ -177,6 +182,7 @@ namespace NabaGame.Reward
 
             // the audit log is mandatory: a null OnClaimed grants nothing and only this line betrays it
             Debug.Log($"[DailyRewardPanel] claimed day {day + 1}: {row.Key} x{row.Amount}");
+            RewardTrack.Send(trackEventName, RewardTrack.Claim, row.Key);
             if (row.OnClaimed != null) row.OnClaimed(row);
             else Debug.LogError($"[DailyRewardPanel] rows[{day}].OnClaimed is null, '{row.Key}' x{row.Amount} was NOT granted", this);
 
@@ -195,6 +201,7 @@ namespace NabaGame.Reward
         bool RequestOpenAllAds()
         {
             if (!openAllUseAds || openAllAdsRequired <= 0 || UnopenedCount == 0) return false;
+            RewardTrack.Send(trackEventName, RewardTrack.OpenAll, "ads");
             return flow.ShowAd(OpenAllPlacement, OnOpenAllAdWatched, OnMonetizeFailed);
         }
 
@@ -214,6 +221,7 @@ namespace NabaGame.Reward
         bool RequestOpenAllIap()
         {
             if (openAllUseAds || !OpenAllIapEnabled || UnopenedCount == 0) return false;
+            RewardTrack.Send(trackEventName, RewardTrack.OpenAll, "iap");
             return flow.Purchase(openAllIapProductId, OpenAll, OnMonetizeFailed);
         }
 

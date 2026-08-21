@@ -5,7 +5,7 @@ using UnityEngine;
 namespace NabaGame.Reward
 {
     // one monetized request at a time per panel, resolved exactly once.
-    // the shipped ads SDK only calls back on a granted reward: a throttled, unloaded, skipped or
+    // some ad SDKs only call back on a granted reward: a throttled, unloaded, skipped or
     // display-failed ad returns in silence. this turns that silence into an explicit failure,
     // so an ad button is never left dead and the player always learns why nothing happened
     public sealed class RewardFlow
@@ -18,6 +18,7 @@ namespace NabaGame.Reward
         const float purchaseTimeoutSeconds = 300f;
 
         readonly MonoBehaviour owner;
+        readonly string trackEventName;
 
         public bool Busy { get; private set; }
 
@@ -27,10 +28,14 @@ namespace NabaGame.Reward
         bool displayed;
         // bumped on every start and every resolve, so exactly one path can win a request
         int generation;
+        // the placement or product id of the request in flight, so the resolve can report which one ended
+        string target;
+        bool purchasing;
 
-        public RewardFlow(MonoBehaviour owner)
+        public RewardFlow(MonoBehaviour owner, string trackEventName)
         {
             this.owner = owner;
+            this.trackEventName = trackEventName;
         }
 
         public bool ShowAd(string placement, Action onReward, Action<string> failed = null)
@@ -40,8 +45,11 @@ namespace NabaGame.Reward
             displayed = false;
             onSucceeded = onReward;
             onFailed = failed;
+            target = placement;
+            purchasing = false;
             int id = ++generation;
 
+            RewardTrack.Send(trackEventName, RewardTrack.AdsStart, placement);
             watchingFocus = true;
             Application.focusChanged += OnFocusChanged;
 
@@ -57,8 +65,11 @@ namespace NabaGame.Reward
             Busy = true;
             onSucceeded = onPurchased;
             onFailed = failed;
+            target = productId;
+            purchasing = true;
             int id = ++generation;
 
+            RewardTrack.Send(trackEventName, RewardTrack.IapStart, productId);
             WatchTimeout(id, purchaseTimeoutSeconds, RewardHooks.PurchaseFailedMessage).Forget();
             RewardHooks.PurchaseIap(productId, ok => Resolve(id, ok, RewardHooks.PurchaseFailedMessage));
             return true;
@@ -69,6 +80,10 @@ namespace NabaGame.Reward
             if (id != generation) return;
             generation++;
             Busy = false;
+            // tracked before the owner check below: the ad still ran even if its panel died meanwhile
+            RewardTrack.Send(trackEventName, purchasing
+                ? (ok ? RewardTrack.IapDone : RewardTrack.IapFail)
+                : (ok ? RewardTrack.AdsDone : RewardTrack.AdsFail), target);
 
             if (watchingFocus)
             {

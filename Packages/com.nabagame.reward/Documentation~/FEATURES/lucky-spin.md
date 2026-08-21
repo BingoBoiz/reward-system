@@ -1,71 +1,70 @@
 # Lucky Spin
 
-**Status:** built in `0.3.0` (2026-08-19), contract flip in `0.5.0`/`0.6.0`; **panel-owned rework shipped in `0.8.0` (2026-08-20, decisions #21–#27)** — the package `LuckySpinManager` is gone, `LuckySpinPanel` owns everything, the host writes a `SampleLuckySpinManager`-style manager. Reference art: `Assets/_ASMR-Tower/Art/preview/spin.jpg` (8-segment wheel `spin_0001_vong-quay`, pin pointer `spin_0000_kim-xoay`).
+`LuckySpinPanel` lo toàn bộ tính năng; game viết một manager kiểu `SampleLuckySpinManager`. Art mẫu: sprite vòng 8 múi `spin_0001_vong-quay`, kim `spin_0000_kim-xoay`. Tài liệu này là chuẩn cho hành vi và dữ liệu.
 
-**Mockup:** [../RefUI/lucky-spin.png](../RefUI/lucky-spin.png) — authoritative for layout/visuals; this doc is authoritative for behavior/data.
+## Là gì
 
-## What it is
+Vòng quay phần thưởng có trọng số. Mỗi khoảng cooldown có một lượt free; quay thêm bằng rewarded ad. Vòng giảm tốc dừng đúng múi đã roll và phần thưởng phát qua `OnClaimed` của row.
 
-A weighted prize wheel. One free spin per cooldown window; additional spins by watching a rewarded ad. The wheel decelerates onto the rolled wedge and the reward is granted through the row's `OnClaimed`.
+## Giao diện
 
-## UI spec (from mockup)
+- Popup có vòng quay ở giữa, nút đóng (X) góc trên phải.
+- **Vòng N múi** (N = list `wedges` dựng sẵn trong prefab, bản mẫu là 8 khớp với art; panel cảnh báo khi `rows.Count` lệch, và nếu row nhiều hơn múi thì kim có thể dừng ở múi bị quấn vòng trong khi phần thưởng `rows[index]` vẫn đúng), mỗi múi có icon + label số lượng (`1.5K`, `100B`, `X10`, ...); có thể tô một múi jackpot nổi bật. Viền vàng có đèn, tâm trắng, kim cố định ở 12 giờ.
+- Nút quay dưới vòng:
+  - **Có lượt free**: nút `SPIN` xanh lá. Chấm đỏ trên nút là của game (`SampleRedDot`, key `LuckySpin`), không thuộc panel.
+  - **Đang cooldown**: dạng quay bằng ads: nút `SPIN` có icon video và dòng `Free spin in mm:ss` đếm ngược tới lượt free kế.
+- Khi đang quay mọi nút khoá; vòng tăng tốc rồi giảm tốc dừng ở múi kết quả (DOTween ease-out); dừng xong có phản hồi (SFX + phát thưởng).
 
-- Popup with the wheel centered, close (X) top-right.
-- **Wheel of N wedges** (count = the authored `wedges` list in the prefab — 8 in the shipped board, matching the ASMR-Tower wheel art; the panel warns when `rows.Count` disagrees, and with more rows than wedges the wheel can visually land on a wrapped wedge while the grant `rows[index]` stays correct), each wedge showing a reward icon + amount label (`1.5K`, `100B`, `X10`, …); one highlighted jackpot wedge allowed via rarity styling. Golden rim with dot lights, white center hub, fixed pointer at 12 o'clock.
-- Spin button states below the wheel:
-  - **Free spin available** — green `SPIN` button. The red dot on it is host-side (`SampleRedDot`, key `LuckySpin`), not part of the panel.
-  - **Cooldown** — ad-spin variant: `SPIN` button with a video icon and caption `Free spin in mm:ss` counting down to the next free spin.
-- During a spin all buttons lock; the wheel accelerates then decelerates onto the result wedge (DOTween ease-out); result lands with feedback (SFX + grant).
+## Dữ liệu (dev điền)
 
-## Data (dev-filled)
+Manager của game (mẫu: `Samples~/RewardDemo/Scripts/SampleLuckySpinManager.cs`) giữ `[TableList] public List<LuckySpinRow> rows`, gán `OnClaimed` cho từng row, rồi truyền list cho `LuckySpinPanel.SetInfo(rows)` lúc boot.
 
-The host's own manager (template: `Samples~/RewardDemo/Scripts/SampleLuckySpinManager.cs`) holds `[TableList] public List<LuckySpinRow> rows`, assigns each row's `OnClaimed`, and passes the list to `LuckySpinPanel.SetInfo(rows)` at boot.
+Row (vị trí trong list là múi: `rows[0]` ở 12 giờ, theo chiều kim đồng hồ):
+`{ string Key, Sprite Icon, long Amount, int Weight, AudioClip ClaimSfx, Action<LuckySpinRow> OnClaimed }`. Constructor cho biết thứ tự điền.
 
-Row — list position is the wedge (`rows[0]` at 12 o'clock, clockwise):
-`{ string Key, Sprite Icon, long Amount, int Weight, AudioClip ClaimSfx, Action<LuckySpinRow> OnClaimed }` — a constructor documents the fill order.
+Kiểm tra nhẹ tay: thiếu `Key`/`Icon`/`Amount` hoặc `Weight <= 0` sinh một cảnh báo gộp qua `LuckySpinRow.Warn(rows)`; ít hơn 2 row mới ném lỗi. Mọi trọng số đều sai thì roll đều.
 
-Validation is lenient (decision #24): missing `Key`/`Icon`/`Amount`, `Weight <= 0` → one aggregated warning via `LuckySpinRow.Warn(rows)`; fewer than 2 rows throws. All-invalid weights fall back to a uniform roll.
+Thông số trên prefab `LuckySpinPanel`: `freeSpinCooldownSeconds` (1800), `spinDurationSeconds` (4.5), `spinFullTurns` (5), `openSfx`, `closeSfx`, `spinStartSfx`, `tickSfx`, `landSfx`, `readySfx`, `wedges` (list múi dựng sẵn, theo chiều kim từ 12 giờ; vị trí đặt trong prefab), `buttonSfx`.
 
-Panel knobs (`[SerializeField]` on the `LuckySpinPanel` prefab): `freeSpinCooldownSeconds` (1800), `spinDurationSeconds` (4.5), `spinFullTurns` (5), `spinStartSfx`, `landSfx`, `wedges` (the authored wedge list, clockwise from 12 o'clock — positions are prefab-authored, decision #28), `buttonSfx`, `tickSfx`.
+## Lưu (key PlayerPrefs `NabaReward.Spin`)
 
-## Save (PlayerPrefs key `NabaReward.Spin`)
-
-| Field | Meaning |
+| Field | Ý nghĩa |
 |---|---|
-| `Version` | payload version |
-| `NextFreeSpinAtMs` | unix ms deadline of the next free spin (0 = available now); survives kill/reopen via wall clock |
+| `Version` | version payload |
+| `NextFreeSpinAtMs` | mốc unix ms của lượt free kế (0 = có ngay); sống qua tắt app nhờ giờ thực |
 
-## API surface — `LuckySpinPanel`, `#region API`
+## API: `LuckySpinPanel`, `#region API`
 
-- `SetInfo(List<LuckySpinRow> rows)` — single init: validate, load save, arm the cooldown deadline (`TimeScheduler`), bind the authored wedges, bind listeners. Call from `Start()` at boot; the panel stays hidden.
-- `OpenPanel()` / `ClosePanel()` — dev-facing activation. `ClosePanel()` refuses while `IsSpinning`.
-- Queries: `bool FreeSpinReady` (the red-dot query), `double SecondsUntilFreeSpin`, `bool IsSpinning`, `bool CanSpinByAd`.
-- `ResetProfile()` — QA/debug reset.
-- Consts: `SaveKey`, `ProfileVersion`, `AdPlacement`.
+- `SetInfo(List<LuckySpinRow> rows)`: khởi tạo duy nhất: kiểm tra dữ liệu, load lưu, hẹn mốc cooldown (`TimeScheduler`), gắn múi dựng sẵn, gắn listener. Gọi từ `Start()` lúc boot; panel vẫn ẩn.
+- `OpenPanel()` / `ClosePanel()`: bật/tắt cho dev. `ClosePanel()` từ chối khi `IsSpinning`.
+- Truy vấn: `bool FreeSpinReady` (dùng cho chấm đỏ), `double SecondsUntilFreeSpin`, `bool IsSpinning`, `bool CanSpinByAd`.
+- `ResetProfile()`: reset cho QA/debug.
+- Hằng: `SaveKey`, `ProfileVersion`, `AdPlacement`.
 
-The spin button runs the free spin when ready, else the ad spin (`RewardFlow`, placement `LuckySpin_AdSpin`). The roll is weighted over the rows and resolved **before** the animation: the panel raises `SpinStartedEvent`, plays the wind-up + deceleration tween onto the pre-rolled wedge, waits `spinDurationSeconds` on unscaled time, then on wheel stop plays `landSfx` + the row's `ClaimSfx`, `Debug.Log`s the grant, and invokes `Row.OnClaimed` — the host grants there.
+Nút quay chạy lượt free khi sẵn sàng, không thì quay bằng ads (`RewardFlow`, placement `LuckySpin_AdSpin`). Roll theo trọng số trên rows và chốt **trước** khi chạy hiệu ứng: panel bắn `SpinStartedEvent`, tween lấy đà rồi giảm tốc về múi đã chốt, chờ `spinDurationSeconds` theo unscaled time, rồi lúc dừng phát `landSfx` + `ClaimSfx` của row, `Debug.Log` phần thưởng và gọi `Row.OnClaimed`; game phát thưởng ở đó.
 
-## Events / hooks / placements
+## Event / hook / placement
 
-- **Grants: `Row.OnClaimed`** (decision #22) — raised on wheel stop; no `SpinResultEvent` exists.
-- `SpinStartedEvent { int WedgeIndex; float DurationSeconds; }` — notification, raised when a spin begins (the wedge is already rolled).
-- `LuckySpinChangedEvent` — notification, raised on free-spin availability / spinning changes (red dots / refresh).
-- `LuckySpinPanelClosedEvent` — notification, raised when the player closes the panel.
-- Hooks used: `PlaySfx`, `ShowRewardedAd`. Optional — unset hooks LogError and proceed (decision #23).
-- Placements: `LuckySpin_AdSpin`.
+- **Phát thưởng: `Row.OnClaimed`**, gọi lúc vòng dừng; không có `SpinResultEvent`.
+- `SpinStartedEvent { int WedgeIndex; float DurationSeconds; }`: thông báo, bắn khi bắt đầu quay (múi đã roll xong).
+- `LuckySpinChangedEvent`: thông báo, bắn khi đổi trạng thái lượt free / đang quay (chấm đỏ / refresh).
+- `LuckySpinPanelClosedEvent`: thông báo, bắn khi người chơi đóng panel.
+- Hook dùng: `PlaySfx`, `ShowRewardedAd`. Tuỳ chọn; hook chưa gán chỉ LogError rồi chạy tiếp.
+- Placement: `LuckySpin_AdSpin`.
+- Analytics: `trackEventName` mặc định `lucky_spin`. Param key bắn ra: `open`, `spin` (`free`/`ads`), `claim` (giá trị = `Row.Key`, bắn lúc vòng dừng), cùng nhóm `ads_*` với giá trị là placement. Để trống `trackEventName` là tắt.
 
-## Verification script
+## Checklist kiểm tra
 
-1. Free spin: wheel decelerates exactly onto the rolled wedge; exactly one `OnClaimed` reaches the host handler (currency changes, grant log in Console); cooldown label starts (`Free spin in mm:ss`).
-2. Distribution sanity: `PreviewRollDistribution` — wedge frequencies follow row weights.
-3. Ad spin: available during cooldown; the panel cannot be closed while the ad is up; a skipped, throttled or unavailable ad → no spin, a `ShowMessage` notice, button unlocked (`RewardFlow`, ARCHITECTURE §8); editor path spins immediately; spam during `IsSpinning` or ad flow → single spin.
-4. Kill app / reopen mid-cooldown → remaining cooldown correct from the wall-clock deadline; kill during spin animation → no grant duplication (grant-on-stop rule; a kill mid-spin loses that spin).
-5. Open/close panel repeatedly → no duplicated listeners; tweens killed on close; hiding via `Hide()` stops the countdown loop.
-6. Null-button pass: disable/delete `spinButton`, `cooldownLabel`, `pointer` → no exception, no stuck state.
+1. Lượt free: vòng dừng đúng múi đã roll; đúng một `OnClaimed` vào hàm của game (tiền đổi, có log trên Console); label cooldown bắt đầu (`Free spin in mm:ss`).
+2. Phân phối: `PreviewRollDistribution`; tần suất múi theo trọng số.
+3. Quay bằng ads: dùng được trong cooldown; không đóng panel được khi ads đang mở; ads bị bỏ qua, bị giới hạn hay không có thì không quay, có thông báo `ShowMessage`, nút mở lại (`RewardFlow`, ARCHITECTURE mục 8); trong Editor quay ngay; bấm liên tục khi `IsSpinning` hoặc đang chờ ads chỉ quay một lần.
+4. Tắt app mở lại giữa cooldown: thời gian còn lại đúng theo mốc giờ thực; tắt app giữa lúc quay: không phát đôi (phát khi dừng; tắt giữa chừng thì mất lượt đó).
+5. Mở/đóng panel nhiều lần: không trùng listener; tween bị kill khi đóng; `Hide()` dừng vòng đếm ngược.
+6. Thử xoá nút: tắt/xoá `spinButton`, `cooldownLabel`, `pointer`: không lỗi, không kẹt.
 
-## Decisions (Phase 4)
+## Quy tắc đã chốt
 
-- Jackpot wedge: plain grant, no extra ceremony (the host's `OnClaimed` can add its own).
-- Ad spins are unlimited during cooldown.
-- Kill-during-animation: grant on wheel stop; a kill mid-spin loses that spin, never duplicates it.
-- Wedge content stays upright while the wheel turns (`LuckySpinWedge.KeepUpright`), matching the mockup at every rest angle.
+- Múi jackpot: phát thưởng bình thường, không hiệu ứng riêng (`OnClaimed` của game tự thêm nếu muốn).
+- Quay bằng ads không giới hạn trong cooldown.
+- Tắt app giữa lúc quay: phát thưởng khi vòng dừng; tắt giữa chừng thì mất lượt, không bao giờ phát đôi.
+- Nội dung múi luôn đứng thẳng khi vòng xoay (`LuckySpinWedge.KeepUpright`) để chữ đọc được ở mọi góc dừng.

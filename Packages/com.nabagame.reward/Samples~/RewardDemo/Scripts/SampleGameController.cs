@@ -6,11 +6,8 @@ using UnityEngine;
 
 namespace NabaGame.Reward.Sample
 {
-    // composition root: assigns the RewardHooks statics, then feeds each panel through its manager.
-    // everything runs from Start() — panels apply startHidden in their own Start(), so nothing opens here
-    public class SampleRewardBoot : MonoBehaviour
+    public class SampleGameController : MonoBehaviour
     {
-        // Swallow = the shipped SDK's reward-interval throttle: neither callback ever fires
         public enum AdResult
         {
             Reward,
@@ -21,8 +18,6 @@ namespace NabaGame.Reward.Sample
         [SerializeField] SampleDailyRewardManager dailyRewardManager;
         [SerializeField] SampleLuckySpinManager luckySpinManager;
         [SerializeField] SampleOnlineRewardManager onlineRewardManager;
-        [SerializeField] SampleCurrencyHud currencyHud;
-        [SerializeField] SampleHomeButtons homeButtons;
         [SerializeField] AudioSource sfxSource;
         [SerializeField] bool failIapPurchase;
         [SerializeField] AdResult adResult = AdResult.Reward;
@@ -50,25 +45,26 @@ namespace NabaGame.Reward.Sample
             RewardHooks.GetIapPrice = GetIapPrice;
             RewardHooks.ShowMessage = ShowMessage;
 
-            SampleUIRoot.Instance.SetInfo();
+            SampleUIManager.Instance.SetInfo();
             dailyRewardManager.SetInfo();
             luckySpinManager.SetInfo();
             onlineRewardManager.SetInfo();
 
-            currencyHud.SetInfo();
-            SampleUIRoot.Instance.itemReceivedPanel.SetInfo();
-            homeButtons.SetInfo();
+            SampleUIManager.Instance.currencyPanel.SetInfo();
+            SampleUIManager.Instance.itemReceivedPanel.SetInfo();
+            SampleUIManager.Instance.homePanel.SetInfo();
         }
 
         void PlaySfx(AudioClip clip)
         {
+            // the logic of triggering sfx is here 
             if (clip && sfxSource) sfxSource.PlayOneShot(clip);
         }
 
-        // async on purpose: the shipped SDK never answers on the same frame
+        // async on purpose: a real SDK never answers on the same frame
         async UniTaskVoid ShowRewardedAd(string placement, Action onReward, Action onSkip)
         {
-            Debug.Log($"[SampleRewardBoot] fake ad '{placement}' -> {adResult}");
+            Debug.Log($"[SampleGameController] fake ad '{placement}' -> {adResult}");
             await UniTask.Delay(TimeSpan.FromSeconds(0.5f), DelayType.Realtime);
 
             if (adResult == AdResult.Reward) onReward();
@@ -79,12 +75,12 @@ namespace NabaGame.Reward.Sample
 
         void ShowMessage(string message)
         {
-            Debug.Log($"<color=orange>[SampleRewardBoot] toast: {message}</color>");
+            Debug.Log($"<color=orange>[SampleGameController] toast: {message}</color>");
         }
 
         void PurchaseIap(string productId, Action<bool> callback)
         {
-            Debug.Log($"[SampleRewardBoot] no IAP SDK in the sample, '{productId}' -> {!failIapPurchase}");
+            Debug.Log($"[SampleGameController] no IAP SDK in the sample, '{productId}' -> {!failIapPurchase}");
             callback(!failIapPurchase);
         }
 
@@ -92,10 +88,10 @@ namespace NabaGame.Reward.Sample
         void PreviewResetEverything()
         {
             SampleRewardGranter.ResetAll();
-            SampleUIRoot.Instance.dailyRewardPanel.ResetProfile();
-            SampleUIRoot.Instance.luckySpinPanel.ResetProfile();
-            SampleUIRoot.Instance.onlineRewardPanel.ResetSession();
-            currencyHud.SetInfo();
+            SampleUIManager.Instance.dailyRewardPanel.ResetProfile();
+            SampleUIManager.Instance.luckySpinPanel.ResetProfile();
+            SampleUIManager.Instance.onlineRewardPanel.ResetSession();
+            SampleUIManager.Instance.currencyPanel.SetInfo();
         }
     }
 }

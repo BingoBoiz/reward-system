@@ -1,47 +1,43 @@
 # NabaGame Reward
 
-Reusable reward features for NabaGame Unity projects. The package is game-agnostic and owns **no data**: each feature ships as **one panel prefab** that owns the logic, timers, save state (PlayerPrefs), ads/IAP flows, and UI; the host game writes one tiny manager holding the feature's row list, and every claim comes back through the row's `OnClaimed` callback — granting is the host's one job. Audio, ads, and IAP plug in through three static hooks assigned once at boot.
+Bộ tính năng thưởng dùng lại được cho game Unity. Package **không giữ dữ liệu**: mỗi tính năng là **một prefab panel** tự lo logic, timer, lưu (PlayerPrefs), ads/IAP và giao diện. Game viết một manager nhỏ giữ danh sách phần thưởng (`rows`); mỗi lần người chơi nhận thưởng, panel gọi ngược về callback `OnClaimed` của dòng đó để game phát thưởng. Âm thanh, ads, IAP, giá store, thông báo cho người chơi và analytics cắm vào qua 6 hook tĩnh, gán một lần lúc khởi động.
 
-## Features
+## Tính năng
 
-| Feature | Status | Spec |
+| Tính năng | Mô tả | Chi tiết |
 |---|---|---|
-| **Daily Reward** — 7-card daily claim strip with streak, ads/IAP Open All | Shipped (0.8.0) — demo in `Samples~/RewardDemo` | [Documentation~/FEATURES/daily-reward.md](Documentation~/FEATURES/daily-reward.md) |
-| **Online Reward** — timed reward grid unlocking while playing, x2/x5 ad speed-up, session-scoped | Shipped (0.8.0) — demo in `Samples~/RewardDemo` | [Documentation~/FEATURES/online-reward.md](Documentation~/FEATURES/online-reward.md) |
-| **Lucky Spin** — weighted spin wheel, free-spin cooldown + ad spin | Shipped (0.8.0) — demo in `Samples~/RewardDemo` | [Documentation~/FEATURES/lucky-spin.md](Documentation~/FEATURES/lucky-spin.md) |
+| Daily Reward | Dãy 7 thẻ điểm danh theo ngày, có streak và nút Open All bằng ads hoặc IAP | [FEATURES/daily-reward.md](Documentation~/FEATURES/daily-reward.md) |
+| Online Reward | Lưới phần thưởng mở dần theo thời gian chơi, tua nhanh x2/x5 bằng ads, reset khi thoát game | [FEATURES/online-reward.md](Documentation~/FEATURES/online-reward.md) |
+| Lucky Spin | Vòng quay có trọng số, một lượt free theo cooldown, quay thêm bằng ads | [FEATURES/lucky-spin.md](Documentation~/FEATURES/lucky-spin.md) |
 
-Authoritative UI mockups live in [Documentation~/RefUI/](Documentation~/RefUI/).
+## Yêu cầu
 
-**Direction change (2026-08-20, `0.8.0`):** the package managers are gone (ARCHITECTURE decisions #21–#27) — the panel owns everything, grants moved from events to `Row.OnClaimed`, `RewardHooks` became static, init is `SetInfo(rows)` (the `StartClass` convention is retired), and every serialized UI reference is optional. The consumer-team style profile driving the design is in [Documentation~/CONSUMER-STYLE.md](Documentation~/CONSUMER-STYLE.md).
+Unity 2022.3 trở lên. Unity không tự kéo dependency dạng git, nên project phải có sẵn:
 
-## Requirements
-
-Git-based package dependencies are **not** auto-resolved by Unity, so the host project must already contain:
-
-| Dependency | Provides | Referenced as |
+| Dependency | Dùng cho | Tham chiếu asmdef |
 |---|---|---|
-| `com.nabagame.core` | EventManager, Singleton | asmdef `com.bmh.core.runtime` |
-| `com.nabagame.ui` | BaseUI, UIPanel, UIManagerSingleton | asmdef `com.nabagame.ui.runtime` |
-| `com.cysharp.unitask` | async flows, timers | asmdef `UniTask` |
-| Odin Inspector (vendored in `Assets/Plugins/Sirenix/`) | `[TableList]` rows, debug buttons | precompiled DLLs (auto-referenced) |
-| DOTween (vendored in `Assets/Plugins/Demigiant/`) | UI tweens | precompiled DLL (auto-referenced) |
+| `com.nabagame.core` | EventManager, Singleton | `com.bmh.core.runtime` |
+| `com.nabagame.ui` | BaseUI, UIPanel, UIManagerSingleton | `com.nabagame.ui.runtime` |
+| `com.cysharp.unitask` | luồng async, timer | `UniTask` |
+| Odin Inspector (`Assets/Plugins/Sirenix/`) | bảng `[TableList]`, nút debug | DLL biên dịch sẵn |
+| DOTween (`Assets/Plugins/Demigiant/`) | tween UI | DLL biên dịch sẵn |
 
-Unity **2022.3+**. The package does **not** depend on any ads SDK or save plugin — ads/IAP go through hooks (sample adapters ship in `Samples~`), and saving uses `PlayerPrefs`.
+Không cần SDK ads hay plugin lưu dữ liệu: ads/IAP đi qua hook, lưu bằng PlayerPrefs.
 
-## Install
+## Cài đặt
 
-- **This repo (development):** the package is embedded at `Packages/com.nabagame.reward/` — nothing to do.
-- **Other projects (once published):** Package Manager → *Add package from git URL* → `https://gitlab.com/nbg-team1/nbg-core/reward-package.git` (final URL decided at first publish), or copy the folder into the host's `Packages/`.
-- **Upgrading from ≤0.7.0:** delete the old imported sample (`Assets/Samples/NabaGame Reward/<old>/`) first — sample types were renamed.
+Package Manager > Add package from git URL:
 
-## Quick start
+    https://github.com/<owner>/<repo>.git?path=Packages/com.nabagame.reward#v1.0.0
 
-1. Install the requirements above, then the package; import the **Reward Demo** sample.
-2. Drag the feature panel prefab (e.g. `DailyRewardPanel`) under your UI root.
-3. Write your manager from the sample template (`SampleDailyRewardManager`, ~15 lines): fill its `rows` table (Inspector `[TableList]` or the row constructor in code) — each row carries your key, icon, amount, claim SFX, and the `OnClaimed` grant callback. That one row class is everything you fill.
-4. At boot (`Start()`), assign the three statics — `RewardHooks.PlaySfx` / `ShowRewardedAd` / `PurchaseIap` — then call your manager's `SetInfo()`, which calls `panel.SetInfo(rows)`.
-5. Wire your home button to `panel.OpenPanel()`. Press Play. Half-filled data warns instead of breaking; a claimed row without `OnClaimed` logs `was NOT granted`.
+hoặc copy thư mục `Packages/com.nabagame.reward/` vào `Packages/` của project. Sau đó import sample **Reward Demo** trong mục Samples của package.
 
-Full walkthrough: [Documentation~/INTEGRATION-GUIDE.md](Documentation~/INTEGRATION-GUIDE.md) (includes the ASMR_Tower drop-in section).
-Design and contracts: [Documentation~/ARCHITECTURE.md](Documentation~/ARCHITECTURE.md).
-Development plan: [Documentation~/ROADMAP.md](Documentation~/ROADMAP.md).
+## Bắt đầu nhanh
+
+1. Kéo prefab panel (ví dụ `DailyRewardPanel` trong sample) vào dưới UI root của bạn.
+2. Copy manager mẫu tương ứng (`Sample*Manager`, khoảng 15 dòng) và điền bảng `rows` trong Inspector hoặc bằng code. Mỗi dòng gồm key, icon, số lượng, SFX khi nhận và callback `OnClaimed`.
+3. Lúc khởi động, trong `Start()`, gán `RewardHooks.PlaySfx`, `ShowRewardedAd`, `PurchaseIap`, `GetIapPrice`, `ShowMessage`, `TrackEvent`, rồi gọi `SetInfo()` của manager (manager gọi tiếp `panel.SetInfo(rows)`).
+4. Gắn nút mở panel vào `panel.OpenPanel()`. Bấm Play. Dữ liệu điền thiếu chỉ cảnh báo chứ không lỗi; dòng nào chưa gán `OnClaimed` thì khi nhận sẽ log `was NOT granted`.
+
+Hướng dẫn đầy đủ: [Documentation~/INTEGRATION-GUIDE.md](Documentation~/INTEGRATION-GUIDE.md).
+Cách package hoạt động: [Documentation~/ARCHITECTURE.md](Documentation~/ARCHITECTURE.md).

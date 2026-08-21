@@ -56,6 +56,7 @@ namespace NabaGame.Reward
         [SerializeField, TabGroup("Tabs", "Config")] int openAllAdsRequired = 1; // số ads để nhận toàn bộ
         [SerializeField, TabGroup("Tabs", "Config")] string openAllIapProductId = ""; // id gói IAP nhận toàn bộ
         [SerializeField, TabGroup("Tabs", "Config")] string openAllIapPriceText = ""; // giá hiển thị trên nút IAP
+        [SerializeField, TabGroup("Tabs", "Config")] string trackEventName = "online_reward"; // tên event analytics, để trống là tắt
 
         [ShowInInspector, ReadOnly, TableList, TabGroup("Tabs", "Data")]
         List<OnlineRewardRow> rows = new List<OnlineRewardRow>(); // dữ liệu do manager truyền vào
@@ -64,6 +65,10 @@ namespace NabaGame.Reward
         public OnlineRewardProfile Profile { get; private set; }
 
         [SerializeField, TabGroup("Tabs", "FX")] float cellStaggerDelay = 0.03f; // trễ hiện lần lượt từng ô
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip openSfx; // tiếng lúc mở panel
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip closeSfx; // tiếng lúc đóng panel
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip unlockSfx; // tiếng lúc một ô mở khoá
+        [SerializeField, TabGroup("Tabs", "FX")] AudioClip speedUpSfx; // tiếng lúc bật tua nhanh
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
         readonly List<OnlineRewardCell> cells = new List<OnlineRewardCell>();
@@ -81,7 +86,7 @@ namespace NabaGame.Reward
 
         #region API
 
-        // one-time init with the host's data; call from Start() at boot — playtime accrues from this
+        // one-time init with the host's data; call from Start() at boot: playtime accrues from this
         // moment even while the panel stays hidden, so never call it lazily on first open
         public void SetInfo(List<OnlineRewardRow> hostRows)
         {
@@ -94,7 +99,7 @@ namespace NabaGame.Reward
             }
 
             rows = hostRows;
-            flow = new RewardFlow(this);
+            flow = new RewardFlow(this, trackEventName);
             OnlineRewardRow.Warn(rows, this);
             WarnConfig();
 
@@ -125,14 +130,17 @@ namespace NabaGame.Reward
             }
 
             Show();
+            if (openSfx) RewardHooks.PlaySfx(openSfx);
             RefreshAll();
+            RewardTrack.Send(trackEventName, RewardTrack.Open, "1");
             for (int i = 0; i < cells.Count; i++) cells[i].PlayIntro(i * cellStaggerDelay);
             StartCountdown();
         }
 
         public void ClosePanel()
         {
-            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            if (closeSfx) RewardHooks.PlaySfx(closeSfx);
+            else if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             StopCountdown();
             Hide();
             EventManager.Instance.Raise(new OnlineRewardPanelClosedEvent());
@@ -140,7 +148,6 @@ namespace NabaGame.Reward
 
         public int SlotCount => rows.Count;
 
-        // trạng thái từng ô cho host query
         public OnlineSlotState GetState(int slot)
         {
             if (Profile == null || slot < 0 || slot >= rows.Count) return OnlineSlotState.Locked;
@@ -148,8 +155,7 @@ namespace NabaGame.Reward
             return CurrentPlaySeconds >= rows[slot].UnlockAfterSeconds ? OnlineSlotState.Claimable : OnlineSlotState.Locked;
         }
 
-        // panel không vẽ chấm đỏ; host tự vẽ (xem SampleRedDot)
-        // red-dot query
+        // red-dot query; the panel draws no dot itself, the host does (see SampleRedDot)
         public bool HasClaimable
         {
             get
@@ -207,6 +213,7 @@ namespace NabaGame.Reward
             if (openAllUseAds && openAllAdsRequired <= 0) Debug.LogWarning($"[OnlineRewardPanel] openAllUseAds is on but openAllAdsRequired is {openAllAdsRequired}, OPEN ALL stays off", this);
             if (!openAllUseAds && !OpenAllIapEnabled) Debug.LogWarning("[OnlineRewardPanel] openAllUseAds is off but openAllIapProductId is empty, OPEN ALL stays off", this);
             if (!openAllUseAds && OpenAllIapEnabled && string.IsNullOrEmpty(openAllIapPriceText)) Debug.LogWarning("[OnlineRewardPanel] openAllIapProductId is set but openAllIapPriceText is empty", this);
+            if (!string.IsNullOrEmpty(trackEventName) && !RewardTrack.IsValidEventName(trackEventName)) Debug.LogWarning($"[OnlineRewardPanel] trackEventName '{trackEventName}' is not a valid analytics event name, the events will be dropped", this);
         }
 
         float GetRemainingSeconds(int slot) => Mathf.Max(0f, (float)(rows[slot].UnlockAfterSeconds - CurrentPlaySeconds));
@@ -260,6 +267,8 @@ namespace NabaGame.Reward
         void OnUnlockDeadline()
         {
             unlockHandle = null;
+            // Playtime starts at boot, so hidden-panel unlock deadlines must stay silent.
+            if (unlockSfx && IsVisible()) RewardHooks.PlaySfx(unlockSfx);
             RaiseChanged();
             ScheduleNextUnlock();
         }
@@ -342,6 +351,8 @@ namespace NabaGame.Reward
             ResetBaseline();
             ScheduleSpeedUpExpiry();
             ScheduleNextUnlock();
+            if (speedUpSfx) RewardHooks.PlaySfx(speedUpSfx);
+            RewardTrack.Send(trackEventName, RewardTrack.SpeedUp, $"x{multiplier}");
             EventManager.Instance.Raise(new OnlineRewardSpeedUpEvent { Multiplier = multiplier });
             RaiseChanged();
         }
@@ -382,6 +393,7 @@ namespace NabaGame.Reward
         bool RequestOpenAllAds()
         {
             if (!openAllUseAds || openAllAdsRequired <= 0 || UnclaimedCount == 0) return false;
+            RewardTrack.Send(trackEventName, RewardTrack.OpenAll, "ads");
             return flow.ShowAd(OpenAllPlacement, OnOpenAllAdWatched, OnMonetizeFailed);
         }
 
@@ -401,6 +413,7 @@ namespace NabaGame.Reward
         bool RequestOpenAllIap()
         {
             if (openAllUseAds || !OpenAllIapEnabled || UnclaimedCount == 0) return false;
+            RewardTrack.Send(trackEventName, RewardTrack.OpenAll, "iap");
             return flow.Purchase(openAllIapProductId, OpenAll, OnMonetizeFailed);
         }
 
@@ -438,6 +451,7 @@ namespace NabaGame.Reward
 
             // the audit log is mandatory: a null OnClaimed grants nothing and only this line betrays it
             Debug.Log($"[OnlineRewardPanel] claimed slot {slot + 1}: {row.Key} x{row.Amount}");
+            RewardTrack.Send(trackEventName, RewardTrack.Claim, row.Key);
             if (row.OnClaimed != null) row.OnClaimed(row);
             else Debug.LogError($"[OnlineRewardPanel] rows[{slot}].OnClaimed is null, '{row.Key}' x{row.Amount} was NOT granted", this);
 

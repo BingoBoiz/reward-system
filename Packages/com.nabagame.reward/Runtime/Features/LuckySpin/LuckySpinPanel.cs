@@ -24,6 +24,7 @@ namespace NabaGame.Reward
         [SerializeField, Min(1), TabGroup("Tabs", "Config")] int freeSpinCooldownSeconds = 1800; // giây chờ giữa hai lượt free
         [SerializeField, Min(1f), TabGroup("Tabs", "Config")] float spinDurationSeconds = 4.5f; // thời gian quay một lượt
         [SerializeField, Min(1), TabGroup("Tabs", "Config")] int spinFullTurns = 5; // số vòng quay trọn vẹn
+        [SerializeField, TabGroup("Tabs", "Config")] string trackEventName = "lucky_spin"; // tên event analytics, để trống là tắt
 
         [SerializeField, TabGroup("Tabs", "UI")] Button closeButton; // nút đóng panel
         [SerializeField, TabGroup("Tabs", "UI")] TMP_Text cooldownLabel; // chữ đếm ngược lượt free
@@ -38,9 +39,12 @@ namespace NabaGame.Reward
         [SerializeField, TabGroup("Tabs", "FX")] float windUpDegrees = 22f; // độ kéo ngược lấy đà
         [SerializeField, TabGroup("Tabs", "FX")] float spinLabelShiftWithVideo = 22f; // dịch chữ khi icon hiện
         [SerializeField, TabGroup("Tabs", "FX")] Color spinDisabledTint = new Color(0.68f, 0.68f, 0.68f, 1f); // màu nút khi khoá quay
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip openSfx; // tiếng lúc mở panel
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip closeSfx; // tiếng lúc đóng panel
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip spinStartSfx; // tiếng lúc bắt đầu quay
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip tickSfx; // tiếng tách khi qua múi
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip landSfx; // tiếng lúc kim dừng lại
+        [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip readySfx; // tiếng lúc hết cooldown quay free
         [SerializeField, FoldoutGroup("Tabs/FX/SFX")] AudioClip buttonSfx; // tiếng bấm nút chung
 
         RewardFlow flow;
@@ -63,8 +67,9 @@ namespace NabaGame.Reward
         {
             if (hostRows == null || hostRows.Count < 2) throw new InvalidOperationException("LuckySpinPanel: rows needs at least 2 wedges");
             rows = hostRows;
-            flow = new RewardFlow(this);
+            flow = new RewardFlow(this, trackEventName);
             LuckySpinRow.Warn(rows, this);
+            if (!string.IsNullOrEmpty(trackEventName) && !RewardTrack.IsValidEventName(trackEventName)) Debug.LogWarning($"[LuckySpinPanel] trackEventName '{trackEventName}' is not a valid analytics event name, the events will be dropped", this);
 
             Profile = RewardProfileStore.Load<LuckySpinProfile>(SaveKey, ProfileVersion);
             ScheduleCooldownEnd();
@@ -85,21 +90,23 @@ namespace NabaGame.Reward
             }
 
             Show();
+            if (openSfx) RewardHooks.PlaySfx(openSfx);
             RefreshAll();
+            RewardTrack.Send(trackEventName, RewardTrack.Open, "1");
             StartCountdown();
         }
 
         public void ClosePanel()
         {
             if (IsSpinning || (flow != null && flow.Busy)) return;
-            if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            if (closeSfx) RewardHooks.PlaySfx(closeSfx);
+            else if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             StopCountdown();
             Hide();
             EventManager.Instance.Raise(new LuckySpinPanelClosedEvent());
         }
 
-        // panel không vẽ chấm đỏ; host tự vẽ (xem SampleRedDot)
-        // red-dot query
+        // red-dot query; the panel draws no dot itself, the host does (see SampleRedDot)
         public bool FreeSpinReady => Profile != null && Profile.NextFreeSpinAtMs <= RewardClock.NowMs;
 
         public double SecondsUntilFreeSpin => Profile == null ? 0 : RewardClock.SecondsUntil(Profile.NextFreeSpinAtMs);
@@ -127,6 +134,7 @@ namespace NabaGame.Reward
             Profile.NextFreeSpinAtMs = RewardClock.NowMs + freeSpinCooldownSeconds * 1000L;
             RewardProfileStore.Save(SaveKey, Profile);
             ScheduleCooldownEnd();
+            RewardTrack.Send(trackEventName, RewardTrack.Spin, "free");
             BeginSpin(Roll());
             return true;
         }
@@ -134,9 +142,15 @@ namespace NabaGame.Reward
         bool SpinByAd()
         {
             if (!CanSpinByAd) return false;
-            if (!flow.ShowAd(AdPlacement, () => BeginSpin(Roll()), OnAdFailed)) return false;
+            if (!flow.ShowAd(AdPlacement, OnAdSpinRewarded, OnAdFailed)) return false;
             RaiseChanged();
             return true;
+        }
+
+        void OnAdSpinRewarded()
+        {
+            RewardTrack.Send(trackEventName, RewardTrack.Spin, "ads");
+            BeginSpin(Roll());
         }
 
         void OnAdFailed(string message)
@@ -186,6 +200,7 @@ namespace NabaGame.Reward
 
             // the audit log is mandatory: a null OnClaimed grants nothing and only this line betrays it
             Debug.Log($"[LuckySpinPanel] spun wedge {wedgeIndex + 1}: {row.Key} x{row.Amount}");
+            RewardTrack.Send(trackEventName, RewardTrack.Claim, row.Key);
             if (row.OnClaimed != null) row.OnClaimed(row);
             else Debug.LogError($"[LuckySpinPanel] rows[{wedgeIndex}].OnClaimed is null, '{row.Key}' x{row.Amount} was NOT granted", this);
 
@@ -203,6 +218,8 @@ namespace NabaGame.Reward
         void OnCooldownEnd()
         {
             cooldownHandle = null;
+            // This deadline also fires while the panel is hidden, so background state changes stay silent.
+            if (readySfx && IsVisible()) RewardHooks.PlaySfx(readySfx);
             RaiseChanged();
         }
 

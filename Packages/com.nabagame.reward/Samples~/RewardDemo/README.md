@@ -1,54 +1,32 @@
-# Reward Demo sample
+# Sample Reward Demo
 
-Runnable Daily Reward, Lucky Spin, and Online Reward (playtime) screens in **one scene**, skinned with the
-ASMR-Tower art set and laid out against the reference previews at a 2400x1080 design resolution. Everything
-prefixed `Sample` is host-side code you own after import — the `Sample*` managers are the exact template a
-real game copies.
+Một scene chạy được với đủ 3 màn Daily Reward, Lucky Spin và Online Reward, dùng art mẫu đi kèm, độ phân giải thiết kế 2400x1080. Mọi thứ có tiền tố `Sample` là code phía game, import xong là của bạn; các `Sample*Manager` chính là mẫu để game copy.
 
-## Run it
+## Chạy thử
 
-1. Import this sample through the Package Manager. (Upgrading from ≤0.7.0: delete the old
-   `Assets/Samples/NabaGame Reward/<old>/` folder first — sample types were renamed.)
-2. Open `Scenes/RewardSample.unity` and press Play. The home buttons on the left (Daily / Spin / Playtime)
-   open each panel; their red dots are `SampleRedDot` components that drive themselves off the package events + panel queries.
-3. The currency HUD shows every grant landing, and every grant also opens the reward-received ceremony
-   popup (dim, burst, CONGRATULATION, card stagger — tap to continue). Spin: the first spin is free, then
-   the button switches to the ad variant with a `Free spin in mm:ss` countdown (the sample "ad" rewards
-   immediately).
+1. Import sample qua Package Manager.
+2. Mở `Scenes/RewardSample.unity`, bấm Play. Ba nút bên trái (Daily / Spin / Playtime) mở từng panel; chấm đỏ trên nút là component `SampleRedDot` tự theo dõi event và trạng thái panel.
+3. HUD tiền hiện mỗi lần phát thưởng, đồng thời popup "nhận quà" bật lên (chạm để đóng). Spin: lượt đầu free, sau đó nút chuyển sang dạng xem ads kèm đếm ngược `Free spin in mm:ss`. "Ads" trong sample là giả lập trên `SampleGameController` (`adResult`: Reward / Skip / Swallow).
 
-## What is where
+## Có gì trong đây
 
-| Folder | Contents |
+| Thư mục | Nội dung |
 |---|---|
-| `Scripts/` | `SampleRewardBoot` (composition root: assigns the three `RewardHooks` statics, then calls every `SetInfo` from `Start()`), `SampleDailyRewardManager` / `SampleLuckySpinManager` / `SampleOnlineRewardManager` (the dev-owned managers: `[TableList] rows` + `OnClaimed` → `SampleRewardGranter.Grant`), `SampleRewardGranter` (maps `Row.Key` onto PlayerPrefs counters, raises `SampleItemGrantedEvent`), `SampleUIRoot` (UI composition root, auto-finds panels), `SampleCurrencyHud`, `SampleHomeButtons` (three buttons, nothing else), `SampleRedDot` (self-driven red dot: subscribes to the change events, evaluates a `SampleRedDotKey` against the panel queries, runs the bell-ring tween; the package draws no badge), `SampleItemReceivedPanel` + `SampleItemReceivedCell` + `SampleItemReceivedBurstFx` (ceremony popup over `SampleItemGrantedEvent`, same-frame batching, key stacking) |
-| `Prefabs/` | `SampleUIRoot` (root Canvas, 2400x1080 ScaleWithScreenSize match 0.5, HUD + home buttons + all panels), `DailyRewardPanel` + 7 authored `DailyRewardCard` instances (backgrounds per-card, wired into `cards`), `LuckySpinPanel` + 8 authored `LuckySpinWedge` instances (wired into `wedges`), `OnlineRewardPanel` + `OnlineRewardCell` template, `SampleOnlineRewardManager` (carries the 18 sample rows), `SampleItemReceivedPanel` (sorting 250) + `SampleItemReceivedCell` template |
-| `Art/`, `Fonts/` | ASMR-Tower sprites and the PassionOne TMP font the prefabs reference; `Art/ItemReceived/` holds the ceremony fx sprites |
+| `Scripts/` | `SampleGameController` (điểm khởi động: gán các hook `RewardHooks` rồi gọi lần lượt mọi `SetInfo()` trong `Start()`), `SampleDailyRewardManager` / `SampleLuckySpinManager` / `SampleOnlineRewardManager` (manager phía game: `[TableList] rows` + `OnClaimed` -> `SampleRewardGranter.Grant`), `SampleRewardGranter` (đổi `Row.Key` thành tiền trong PlayerPrefs, bắn `SampleItemGrantedEvent`), `SampleUIManager` (UI root, tự tìm panel), `SampleCurrencyPanel` / `SampleHomePanel` (hai panel HUD luôn hiện: cũng là `BaseUI` như mọi panel khác, `useBackground = false`, `startHidden = false`, không đăng ký vào `checkHasPopup`), `SampleRedDot` (chấm đỏ tự chạy: tự nghe event, tự đọc trạng thái panel theo `SampleRedDotKey`, tự chạy hiệu ứng rung chuông; package không vẽ badge), `SampleItemReceivedPanel` + `SampleItemReceivedCell` + `SampleItemReceivedBurstFx` (popup nhận quà, gộp các lần phát cùng frame, cộng dồn key trùng) |
+| `Prefabs/` | `SampleUIManager` (Canvas gốc 2400x1080 ScaleWithScreenSize match 0.5, HUD, nút home, toàn bộ panel), `DailyRewardPanel` với 7 `DailyRewardCard` dựng sẵn (nối vào `cards`), `LuckySpinPanel` với 8 `LuckySpinWedge` dựng sẵn (nối vào `wedges`), `OnlineRewardPanel` với template `OnlineRewardCell`, `SampleOnlineRewardManager` (18 dòng mẫu), `SampleItemReceivedPanel` (sorting 250) + template `SampleItemReceivedCell` |
+| `Audio/` | 11 clip SFX đã nối sẵn cho thao tác nút, mở/đóng panel, quay, mở khoá, tua nhanh, popup nhận quà và HUD tiền |
+| `Art/`, `Fonts/` | Sprite mẫu và font TMP PassionOne mà prefab dùng; `Art/ItemReceived/` là sprite hiệu ứng popup |
 
-The package owns no data assets: the reward rows live on the `Sample*` managers (`SampleDailyRewardManager.rows`
-— 7 rows; `SampleLuckySpinManager.rows` — 8 weighted wedges; `SampleOnlineRewardManager.rows` — 18 rows on
-the manager prefab, one unlock per minute). Each row carries its own `Key`, `Sprite Icon`, `Amount`, and
-optional `ClaimSfx`. Feature knobs live on the **panel prefabs**: Daily's Open All config (`openAllAdsRequired`
-3, IAP product + `$4.99`), Spin's 30-min cooldown and spin timing, Online's x2/x5 durations, `x2AdsRequired` 1 /
-`x5AdsRequired` 2 and its own Open All config (`openAllAdsRequired` 3, IAP product + `$4.99`).
+Package không có asset dữ liệu: các dòng phần thưởng nằm trên `Sample*Manager` (Daily 7 dòng, Spin 8 múi có trọng số, Online 18 dòng trên prefab manager, mỗi phút mở một ô). Mỗi dòng có `Key`, `Icon`, `Amount` và `ClaimSfx` (tuỳ chọn). Thông số của tính năng nằm trên **prefab panel**: cấu hình Open All của Daily (`openAllAdsRequired` 3, product IAP + `$4.99`), cooldown 30 phút và thời gian quay của Spin, thời lượng x2/x5 của Online, `x2AdsRequired` 1 / `x5AdsRequired` 2 và bộ Open All riêng của nó.
 
-## Adapting it to your game
+## Đem vào game của bạn
 
-`SampleRewardGranter.Grant` is the only piece that knows what a reward *means*. Copy a `Sample*` manager,
-fill its `rows` with your own keys/icons/amounts, and grant from `Row.Key` inside `OnClaimed` — keep the
-fail-loud `default` arm: an unknown key must reach the Console, never a silent no-op. A claimed row whose
-`OnClaimed` is null grants nothing and LogErrors `was NOT granted`; every grant is also `Debug.Log`ged.
+`SampleRewardGranter.Grant` là chỗ duy nhất biết một phần thưởng nghĩa là gì. Copy một `Sample*Manager`, điền `rows` bằng key/icon/số lượng của game bạn, rồi phát thưởng theo `Row.Key` trong `OnClaimed`. Giữ nhánh `default` báo lỗi: key lạ phải hiện lên Console, không được im lặng bỏ qua. Dòng nào `OnClaimed` null thì không phát gì và log `was NOT granted`; mọi lần phát đều có log.
 
-At boot, replace the three adapters in `SampleRewardBoot.SetInfo()` with your services
-(`SoundManager`/`AdManager`/`IAPManager` one-liners are in INTEGRATION-GUIDE §6), and call the managers'
-`SetInfo()` from `Start()` — **Online Reward must be initialized at boot** or playtime never accrues.
+Lúc khởi động, thay các adapter giả trong `SampleGameController.SetInfo()` bằng service thật của bạn (mẫu một dòng trong INTEGRATION-GUIDE mục 6) và gọi `SetInfo()` của các manager từ `Start()`. **Online Reward phải được khởi tạo ngay lúc boot**, nếu không thời gian chơi không được tính.
 
-The ceremony popup is host-side by design: the granter raises `SampleItemGrantedEvent` (`Key`, `Icon`,
-`Amount`) and `SampleItemReceivedPanel` listens — the package never opens it.
+Popup nhận quà là của phía game: granter bắn `SampleItemGrantedEvent` (`Key`, `Icon`, `Amount`) và `SampleItemReceivedPanel` lắng nghe; package không bao giờ tự mở nó.
 
-Everything else — claim rules, streak, UTC rollover, weighted roll, cooldown, spin timing, speed-ups,
-persistence — lives on the package panels and needs no changes. Panels open through `OpenPanel()` and
-close through `ClosePanel()`; each panel's `#region API` is the entire surface you need. Any serialized
-button/label on a panel may be disabled or deleted — the feature degrades silently. The wheel art has 8
-segments, matching the 8 authored wedges in `LuckySpinPanel.wedges`; a row count that disagrees with the
-authored wedge list logs a warning. Debug
-`[Button]`s on the panels cover force-wedge, cooldown, add-seconds, roll distribution, and profile reset.
+Sample phát toàn bộ SFX qua một `AudioSource` và `PlayOneShot` trong `RewardHooks.PlaySfx`. Khi tích hợp game thật, thay hook này bằng sound manager của game; panel và row không cần sửa.
+
+Mọi thứ còn lại (luật nhận, streak, reset theo ngày UTC, quay có trọng số, cooldown, thời gian quay, tua nhanh, lưu dữ liệu) nằm trong panel của package, không cần sửa. Panel mở bằng `OpenPanel()`, đóng bằng `ClosePanel()`; `#region API` trong mỗi panel là toàn bộ những gì bạn cần dùng. Nút hay label nào trên panel cũng có thể tắt/xoá, tính năng tự giảm bớt chứ không lỗi. Art vòng quay có 8 múi, khớp 8 `LuckySpinWedge` dựng sẵn trong `LuckySpinPanel.wedges`; số row lệch với số múi sẽ có cảnh báo. Các nút `[Button]` debug trên panel cho phép ép múi trúng, chỉnh cooldown, cộng giây, xem phân phối quay và reset dữ liệu.
