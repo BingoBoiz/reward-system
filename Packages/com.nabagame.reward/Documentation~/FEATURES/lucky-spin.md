@@ -14,6 +14,7 @@ Vòng quay phần thưởng có trọng số. Mỗi khoảng cooldown có một 
   - **Có lượt free**: nút `SPIN` xanh lá. Chấm đỏ trên nút là của game (`SampleRedDot`, key `LuckySpin`), không thuộc panel.
   - **Đang cooldown**: dạng quay bằng ads: nút `SPIN` có icon video và dòng `Free spin in mm:ss` đếm ngược tới lượt free kế.
 - Khi đang quay mọi nút khoá; vòng tăng tốc rồi giảm tốc dừng ở múi kết quả (DOTween ease-out); dừng xong có phản hồi (SFX + phát thưởng).
+- Panel và button scale/fade khi xuất hiện; nút Spin có phản hồi nhấn và chỉ nhún lặp khi đang bấm được. Ở chế độ ads, icon video nảy lệch pha với thân nút.
 
 ## Dữ liệu (dev điền)
 
@@ -61,6 +62,7 @@ Nút quay chạy lượt free khi sẵn sàng, không thì quay bằng ads (`Rew
 4. Tắt app mở lại giữa cooldown: thời gian còn lại đúng theo mốc giờ thực; tắt app giữa lúc quay: không phát đôi (phát khi dừng; tắt giữa chừng thì mất lượt đó).
 5. Mở/đóng panel nhiều lần: không trùng listener; tween bị kill khi đóng; `Hide()` dừng vòng đếm ngược.
 6. Thử xoá nút: tắt/xoá `spinButton`, `cooldownLabel`, `pointer`: không lỗi, không kẹt.
+7. Chờ hơn 4.5 giây khi nút Spin bấm được: chỉ Spin nhún; bắt đầu quay, mở ads, đóng panel hoặc khoá nút thì attention dừng, mở lại không lệch scale.
 
 ## Quy tắc đã chốt
 

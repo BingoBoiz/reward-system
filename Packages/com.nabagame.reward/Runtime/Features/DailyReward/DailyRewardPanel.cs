@@ -39,6 +39,9 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/UI/Open All")] TMP_Text openAllIapPriceLabel; // chữ giá tiền trên nút
         [SerializeField, FoldoutGroup("Tabs/UI/Cards")] List<DailyRewardCard> cards = new (); // thẻ ngày xếp sẵn theo thứ tự
 
+        [SerializeField, TabGroup("Tabs", "FX")] UIElement[] animatedButtons = Array.Empty<UIElement>(); // nút hiện theo thứ tự
+        [SerializeField, FoldoutGroup("Tabs/FX/Attention")] RewardButtonAttentionFx openAllAdsAttention; // nhún nút ads đặc biệt
+        [SerializeField, FoldoutGroup("Tabs/FX/Attention")] RewardButtonAttentionFx openAllIapAttention; // nhún nút IAP đặc biệt
         [SerializeField, TabGroup("Tabs", "FX")] float cardStaggerDelay = 0.04f; // trễ hiện lần lượt từng thẻ
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip openSfx; // tiếng lúc mở panel
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip closeSfx; // tiếng lúc đóng panel
@@ -90,6 +93,7 @@ namespace NabaGame.Reward
             Show();
             if (openSfx) RewardHooks.PlaySfx(openSfx);
             RefreshAll();
+            RewardUi.PlayIntro(animatedButtons);
             RewardTrack.Send(trackEventName, RewardTrack.Open, "1");
             for (int i = 0; i < cards.Count && i < rows.Count; i++) if (cards[i]) cards[i].PlayIntro(i * cardStaggerDelay);
         }
@@ -98,6 +102,8 @@ namespace NabaGame.Reward
         {
             if (closeSfx) RewardHooks.PlaySfx(closeSfx);
             else if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
+            if (openAllAdsAttention) openAllAdsAttention.SetAttention(false);
+            if (openAllIapAttention) openAllIapAttention.SetAttention(false);
             Hide();
             EventManager.Instance.Raise(new DailyRewardPanelClosedEvent());
         }
@@ -312,6 +318,8 @@ namespace NabaGame.Reward
             if (iapOn && openAllIapPriceLabel) openAllIapPriceLabel.text = IapPriceText;
 
             if (comeBackLabel) comeBackLabel.SetActive(UnopenedCount == 0);
+            if (openAllAdsAttention) openAllAdsAttention.SetAttention(IsVisible() && adsOn && !busy);
+            if (openAllIapAttention) openAllIapAttention.SetAttention(IsVisible() && iapOn && !busy);
         }
 
         void OnCardClicked(int day) => TryClaim();
@@ -320,12 +328,14 @@ namespace NabaGame.Reward
         {
             if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             RequestOpenAllAds();
+            RefreshAll();
         }
 
         void OnOpenAllIap()
         {
             if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             RequestOpenAllIap();
+            RefreshAll();
         }
 
         #endregion

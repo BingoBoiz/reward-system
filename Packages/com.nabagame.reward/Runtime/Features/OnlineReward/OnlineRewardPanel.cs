@@ -64,6 +64,9 @@ namespace NabaGame.Reward
         [ShowInInspector, TabGroup("Tabs", "Data"), InlineProperty]
         public OnlineRewardProfile Profile { get; private set; }
 
+        [SerializeField, TabGroup("Tabs", "FX")] UIElement[] animatedButtons = Array.Empty<UIElement>(); // nút hiện theo thứ tự
+        [SerializeField, FoldoutGroup("Tabs/FX/Attention")] RewardButtonAttentionFx openAllAdsAttention; // nhún nút ads đặc biệt
+        [SerializeField, FoldoutGroup("Tabs/FX/Attention")] RewardButtonAttentionFx openAllIapAttention; // nhún nút IAP đặc biệt
         [SerializeField, TabGroup("Tabs", "FX")] float cellStaggerDelay = 0.03f; // trễ hiện lần lượt từng ô
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip openSfx; // tiếng lúc mở panel
         [SerializeField, TabGroup("Tabs", "FX")] AudioClip closeSfx; // tiếng lúc đóng panel
@@ -132,6 +135,7 @@ namespace NabaGame.Reward
             Show();
             if (openSfx) RewardHooks.PlaySfx(openSfx);
             RefreshAll();
+            RewardUi.PlayIntro(animatedButtons);
             RewardTrack.Send(trackEventName, RewardTrack.Open, "1");
             for (int i = 0; i < cells.Count; i++) cells[i].PlayIntro(i * cellStaggerDelay);
             StartCountdown();
@@ -142,6 +146,8 @@ namespace NabaGame.Reward
             if (closeSfx) RewardHooks.PlaySfx(closeSfx);
             else if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             StopCountdown();
+            if (openAllAdsAttention) openAllAdsAttention.SetAttention(false);
+            if (openAllIapAttention) openAllIapAttention.SetAttention(false);
             Hide();
             EventManager.Instance.Raise(new OnlineRewardPanelClosedEvent());
         }
@@ -550,6 +556,8 @@ namespace NabaGame.Reward
 
             RefreshBooster(x2Booster, SpeedUpX2);
             RefreshBooster(x5Booster, SpeedUpX5);
+            if (openAllAdsAttention) openAllAdsAttention.SetAttention(IsVisible() && adsOn && !busy);
+            if (openAllIapAttention) openAllIapAttention.SetAttention(IsVisible() && iapOn && !busy);
         }
 
         void RefreshBooster(BoosterButton booster, int multiplier)

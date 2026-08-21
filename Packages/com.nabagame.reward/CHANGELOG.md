@@ -3,6 +3,18 @@
 Mọi thay đổi đáng chú ý của package được ghi ở đây. Định dạng theo
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), đánh số theo [SemVer](https://semver.org/).
 
+## [1.2.0] - 2026-08-21
+
+### Added
+
+- `RewardButtonAttentionFx`: hiệu ứng nhún CTA dùng unscaled time, dừng an toàn khi panel đóng, button bị khoá hoặc GameObject bị tắt. Public API duy nhất là `SetAttention(bool)`.
+- Button cấp panel dùng `UIButton` cho phản hồi nhấn và `UIElement` cho scale/fade khi xuất hiện. Daily và Online chỉ nhún nút Open All đang hiện; Lucky Spin chỉ nhún nút Spin khi bấm được.
+
+### Changed
+
+- Pulse và claimed punch của `DailyRewardCard` / `OnlineRewardCell` chạy trên icon, không tranh scale với hiệu ứng nhấn của button.
+- Ba prefab panel bật scale kết hợp fade khi mở/đóng. Online X2/X5 có intro và press nhưng không chạy attention lặp.
+
 ## [1.1.0] - YYYY-MM-DD
 
 ### Added

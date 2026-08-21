@@ -15,6 +15,7 @@ Lưới phần thưởng mở khoá lần lượt theo thời gian trong lúc ng
   - **Đã nhận**: dấu tick, icon tối đi, không bấm được.
 - Nút dưới: `OPEN ALL`, `X2 SPEED` / `X5 SPEED` (cầu vồng, icon tua nhanh, badge ads; mỗi nút hiện đếm `n/required` khi cần hơn 1 ads). Khi tua nhanh đang bật, nút hiện thời gian buff còn lại và không bấm được; timer các ô đếm từng giây hiển thị (năm nhịp mỗi giây thật ở x5), không nhảy số.
 - `OPEN ALL` chiếm một chỗ với **hai nút dựng sẵn xếp chồng cùng vị trí**: `OpenAllAdsButton` (xanh lá, icon video, đếm `n/required`) và `OpenAllIapButton` (xanh dương, icon quà, label giá). Chỉ một nút hiện, chọn bằng `openAllUseAds`; cùng kiểu với OPEN ALL của Daily Reward.
+- Panel và button scale/fade khi xuất hiện; mọi button có phản hồi nhấn. Chỉ Open All đang hiện và bấm được mới nhún lặp cùng icon; X2/X5 không chạy attention lặp. Ô nhận được pulse nhẹ trên icon.
 
 ## Dữ liệu (dev điền)
 
@@ -81,6 +82,7 @@ Một lần nhận: đánh dấu ô, phát `ClaimSfx` của row, `Debug.Log` ph�
 6. Chạy nền / mất focus vài phút, **panel đang ẩn và kể cả khi tick `disableWhenHidden`**, rồi quay lại: timer không nhảy vì thời gian treo (`Application.focusChanged` chốt).
 7. Mở/đóng panel nhiều lần: không trùng listener; vòng đếm ngược dừng khi ẩn, kể cả gọi `Hide()` trần.
 8. Thử xoá nút: tắt/xoá `openAllAdsButton`, `openAllIapButton`, label open-all bất kỳ, `button`/`label`/`adsCountLabel` của một booster, hay `cellTemplate`: không lỗi, không kẹt (thiếu template = panel trống + một lỗi log).
+9. Chờ hơn 4.5 giây: chỉ Open All đang hiện nhún; X2/X5 đứng yên ngoài lần intro/press. Bắt đầu ads/IAP, đổi chế độ, đóng panel hoặc khoá button thì attention dừng và không để lại scale lệch.
 
 ## Quy tắc đã chốt
 

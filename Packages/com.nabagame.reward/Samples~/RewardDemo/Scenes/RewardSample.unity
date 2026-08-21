@@ -434,6 +434,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -0.386
       objectReference: {fileID: 0}
+    - target: {fileID: 3030224805380736811, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 92
+      objectReference: {fileID: 0}
     - target: {fileID: 3038589779228084565, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_SizeDelta.x
       value: 309.937
@@ -505,6 +509,18 @@ PrefabInstance:
     - target: {fileID: 3467438245717244588, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 18.341
+      objectReference: {fileID: 0}
+    - target: {fileID: 3787287804701105397, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_Sprite
+      value:
+      objectReference: {fileID: 0}
+    - target: {fileID: 3787287804701105397, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_PreserveAspect
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3789163465437283158, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -115
       objectReference: {fileID: 0}
     - target: {fileID: 3789538416562481439, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_SizeDelta.x
@@ -653,6 +669,10 @@ PrefabInstance:
     - target: {fileID: 4880391913077341411, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 89.366
+      objectReference: {fileID: 0}
+    - target: {fileID: 4885424977860210655, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 253.89996
       objectReference: {fileID: 0}
     - target: {fileID: 4931717503260302176, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_IsActive
@@ -834,6 +854,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -44.581
       objectReference: {fileID: 0}
+    - target: {fileID: 6867979936640395500, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7081717257380644796, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_IsActive
       value: 1
@@ -877,6 +901,10 @@ PrefabInstance:
     - target: {fileID: 7532588482417840357, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_SizeDelta.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7593286310429691763, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 438
       objectReference: {fileID: 0}
     - target: {fileID: 7604413837376830199, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_text
@@ -950,6 +978,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 1.2
       objectReference: {fileID: 0}
+    - target: {fileID: 8459998090214078767, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8570218895925643419, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_SizeDelta.x
       value: 1034.429
@@ -981,6 +1013,10 @@ PrefabInstance:
     - target: {fileID: 8620596308268013939, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 89.366
+      objectReference: {fileID: 0}
+    - target: {fileID: 8816438951973397873, guid: c1d04094528f7db4287cc56420eb8229, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 332.39996
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1120,7 +1156,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 3916328cc68b6dd4184a3df2709edf65, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2cfe7c9e4692fd0448f7655ecf5479f8, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1320,43 +1356,43 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rows:
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 7500000
     ClaimSfx: {fileID: 0}
     LabelOverride: 
     HideIconUntilClaim: 0
   - Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 1
     ClaimSfx: {fileID: 0}
     LabelOverride: RARE
     HideIconUntilClaim: 0
   - Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 10
     ClaimSfx: {fileID: 0}
     LabelOverride: 
     HideIconUntilClaim: 0
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 15000000
     ClaimSfx: {fileID: 0}
     LabelOverride: 
     HideIconUntilClaim: 0
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 30000000
     ClaimSfx: {fileID: 0}
     LabelOverride: 
     HideIconUntilClaim: 0
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 75000000
     ClaimSfx: {fileID: 0}
     LabelOverride: 
     HideIconUntilClaim: 0
   - Key: noads
-    Icon: {fileID: 21300000, guid: 5c743bbaeb183204197313a2091b76df, type: 3}
+    Icon: {fileID: 21300000, guid: 0f9fd1d0320cb7d48aa8722637e262cf, type: 3}
     Amount: 1
     ClaimSfx: {fileID: 8300000, guid: 4187204c9eda04d44970c2fd8226ad47, type: 3}
     LabelOverride: ???
@@ -1475,42 +1511,42 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   rows:
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 400
     Weight: 24
     ClaimSfx: {fileID: 0}
   - Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 1
     Weight: 12
     ClaimSfx: {fileID: 0}
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 800
     Weight: 18
     ClaimSfx: {fileID: 0}
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 400
     Weight: 24
     ClaimSfx: {fileID: 0}
   - Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 2
     Weight: 6
     ClaimSfx: {fileID: 0}
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 1500
     Weight: 10
     ClaimSfx: {fileID: 0}
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 400
     Weight: 24
     ClaimSfx: {fileID: 0}
   - Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 5000
     Weight: 3
     ClaimSfx: {fileID: 8300000, guid: 4187204c9eda04d44970c2fd8226ad47, type: 3}

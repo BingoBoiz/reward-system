@@ -35,6 +35,8 @@ namespace NabaGame.Reward
         [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] RectTransform pointer; // kim chỉ phần thưởng
         [SerializeField, FoldoutGroup("Tabs/UI/Wheel")] List<LuckySpinWedge> wedges = new (); // múi xếp sẵn theo chiều kim
 
+        [SerializeField, TabGroup("Tabs", "FX")] UIElement[] animatedButtons = Array.Empty<UIElement>(); // nút hiện theo thứ tự
+        [SerializeField, TabGroup("Tabs", "FX")] RewardButtonAttentionFx spinAttention; // nhún nút quay đặc biệt
         [SerializeField, TabGroup("Tabs", "FX")] float windUpSeconds = 0.45f; // giây kéo ngược lấy đà
         [SerializeField, TabGroup("Tabs", "FX")] float windUpDegrees = 22f; // độ kéo ngược lấy đà
         [SerializeField, TabGroup("Tabs", "FX")] float spinLabelShiftWithVideo = 22f; // dịch chữ khi icon hiện
@@ -92,6 +94,7 @@ namespace NabaGame.Reward
             Show();
             if (openSfx) RewardHooks.PlaySfx(openSfx);
             RefreshAll();
+            RewardUi.PlayIntro(animatedButtons);
             RewardTrack.Send(trackEventName, RewardTrack.Open, "1");
             StartCountdown();
         }
@@ -102,6 +105,7 @@ namespace NabaGame.Reward
             if (closeSfx) RewardHooks.PlaySfx(closeSfx);
             else if (buttonSfx) RewardHooks.PlaySfx(buttonSfx);
             StopCountdown();
+            if (spinAttention) spinAttention.SetAttention(false);
             Hide();
             EventManager.Instance.Raise(new LuckySpinPanelClosedEvent());
         }
@@ -291,6 +295,7 @@ namespace NabaGame.Reward
             if (spinLabel) spinLabel.rectTransform.anchoredPosition = free ? spinLabelRestPosition : spinLabelRestPosition + Vector2.right * spinLabelShiftWithVideo;
             if (cooldownLabel) cooldownLabel.gameObject.SetActive(!free);
             RefreshCooldownLabel();
+            if (spinAttention) spinAttention.SetAttention(IsVisible() && canSpin);
         }
 
         void RefreshCooldownLabel()

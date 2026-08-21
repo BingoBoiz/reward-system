@@ -70,19 +70,26 @@ namespace NabaGame.Reward
         {
             KillTweens();
             transform.localScale = Vector3.one;
-            introTween = transform.DOPunchScale(Vector3.one * 0.18f, 0.35f, 8, 0.8f)
+            if (!icon)
+            {
+                ApplyPulse();
+                return;
+            }
+
+            icon.rectTransform.localScale = Vector3.one;
+            introTween = icon.rectTransform.DOPunchScale(Vector3.one * 0.18f, 0.35f, 8, 0.8f)
                 .SetUpdate(true).SetLink(gameObject).OnComplete(ApplyPulse);
         }
 
-        // the pulse and the intro/punch both drive localScale, so only one may ever be alive
         void ApplyPulse()
         {
             introTween = null;
             pulseTween?.Kill();
             pulseTween = null;
             transform.localScale = Vector3.one;
-            if (state != DailyState.Claimable) return;
-            pulseTween = transform.DOScale(1.04f, 0.55f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine)
+            if (icon) icon.rectTransform.localScale = Vector3.one;
+            if (state != DailyState.Claimable || !icon) return;
+            pulseTween = icon.rectTransform.DOScale(1.04f, 0.55f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine)
                 .SetUpdate(true).SetLink(gameObject);
         }
 
@@ -98,6 +105,7 @@ namespace NabaGame.Reward
         {
             KillTweens();
             transform.localScale = Vector3.one;
+            if (icon) icon.rectTransform.localScale = Vector3.one;
         }
 
         void HandleClicked()

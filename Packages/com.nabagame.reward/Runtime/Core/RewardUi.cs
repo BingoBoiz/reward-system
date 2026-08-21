@@ -1,3 +1,4 @@
+using NabaGame.UI;
 using UnityEngine.Events;
 using UnityEngine.UI;
 
@@ -11,6 +12,18 @@ namespace NabaGame.Reward
             if (!button) return;
             button.onClick.RemoveListener(handler);
             button.onClick.AddListener(handler);
+        }
+
+        internal static void PlayIntro(UIElement[] elements)
+        {
+            if (elements == null) return;
+            for (int i = 0; i < elements.Length; i++)
+            {
+                UIElement element = elements[i];
+                if (!element || !element.gameObject.activeInHierarchy) continue;
+                element.HideUiElement(true);
+                element.ShowUiElement();
+            }
         }
     }
 }

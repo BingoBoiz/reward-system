@@ -117,6 +117,8 @@ Product id của `PurchaseIap` (ví dụ `DailyRewardPanel.openAllIapProductId`)
 
 Nút/label/badge nào trên panel cũng có thể tắt hoặc xoá; panel kiểm tra null mọi tham chiếu và chỉ bỏ chức năng đó, không ném lỗi.
 
+Prefab mẫu đã nối sẵn hiệu ứng UI. `Button` xử lý logic, `UIButton` tạo phản hồi nhấn, `UIElement` chạy intro và `RewardButtonAttentionFx` nhún CTA đặc biệt. Game chỉ cần dùng prefab; khi sửa skin, giữ editor `OnClick` của `UIButton` rỗng và tiếp tục bind nghiệp vụ qua `Button.onClick` trong code.
+
 ## 8. Analytics
 
 Package tự bắn event, bạn chỉ điền **một chuỗi** cho mỗi tính năng: field `trackEventName` trong tab **Config** của prefab panel (mặc định `daily_reward`, `lucky_spin`, `online_reward`). Đó là tên event; **để trống là tắt** analytics của tính năng đó. Đổi thành `<tên game>_daily_reward` nếu muốn tách theo game.

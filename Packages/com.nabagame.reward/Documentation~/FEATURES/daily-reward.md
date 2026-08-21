@@ -18,6 +18,7 @@ Dãy 7 thẻ điểm danh: mỗi ngày (UTC) người chơi nhận thẻ kế ti
   - **Nút ads** (xanh lá, icon video): chữ `OPEN ALL` + tiến độ `X/N`; hiện khi `openAllUseAds` bật, `openAllAdsRequired > 0`, và tuần chưa mở hết.
   - **Nút IAP** (xanh dương, icon quà): chữ `OPEN ALL` + giá (`RewardHooks.GetIapPrice`, dự phòng `openAllIapPriceText`); hiện khi `openAllUseAds` tắt, `openAllIapProductId` có giá trị, và tuần chưa mở hết.
   - Khi cả tuần đã mở (`UnopenedCount == 0`) cả hai nút ẩn và hiện label tĩnh `COME BACK TOMORROW`.
+- Panel và button scale/fade khi xuất hiện; mọi button có phản hồi nhấn. Chỉ nút Open All đang hiện và bấm được mới nhún lặp, icon trên nút nảy lệch pha. Thẻ nhận được pulse nhẹ trên icon.
 
 ## Dữ liệu (dev điền)
 
@@ -76,6 +77,7 @@ Một lần nhận: tăng streak, lưu, phát `ClaimSfx` của row, `Debug.Log` 
 10. Cấu hình của chế độ đang chọn rỗng (`openAllUseAds` bật mà `openAllAdsRequired = 0`, hoặc tắt mà không có product id): không có nút Open All và một cảnh báo cấu hình, nhận từng thẻ vẫn bình thường; hook chưa gán chỉ LogError.
 11. Thử xoá nút: tắt/xoá `openAllAdsButton`, `openAllIapButton`, `comeBackLabel`, thành phần con của một thẻ, hay cả một thẻ dựng sẵn (phần tử `cards` thành null): không lỗi, panel vẫn mở, các thẻ khác vẫn nhận được.
 12. Xoá `OnClaimed` của một row: nhận row đó log `was NOT granted` và không phát gì; phần còn lại không ảnh hưởng.
+13. Mở panel và chờ hơn 4.5 giây: chỉ Open All đang hiện nhún; chuyển ads/IAP, bắt đầu request, đóng panel hoặc khoá button thì tween cũ dừng và scale trở về đúng giá trị.
 
 ## Quy tắc đã chốt
 

@@ -47,92 +47,92 @@ MonoBehaviour:
   rows:
   - Slot: 1
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 100
     UnlockAfterSeconds: 60
   - Slot: 2
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 200
     UnlockAfterSeconds: 120
   - Slot: 3
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 300
     UnlockAfterSeconds: 180
   - Slot: 4
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 400
     UnlockAfterSeconds: 240
   - Slot: 5
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 500
     UnlockAfterSeconds: 300
   - Slot: 6
     Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 1
     UnlockAfterSeconds: 360
   - Slot: 7
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 700
     UnlockAfterSeconds: 420
   - Slot: 8
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 900
     UnlockAfterSeconds: 480
   - Slot: 9
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 1100
     UnlockAfterSeconds: 540
   - Slot: 10
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 1300
     UnlockAfterSeconds: 600
   - Slot: 11
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 1500
     UnlockAfterSeconds: 660
   - Slot: 12
     Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 2
     UnlockAfterSeconds: 720
   - Slot: 13
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 2000
     UnlockAfterSeconds: 780
   - Slot: 14
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 2500
     UnlockAfterSeconds: 840
   - Slot: 15
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 3000
     UnlockAfterSeconds: 900
   - Slot: 16
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 4000
     UnlockAfterSeconds: 960
   - Slot: 17
     Key: cash
-    Icon: {fileID: 21300000, guid: 9ecf48a6a9aa2bd40a28fbf50ebd8745, type: 3}
+    Icon: {fileID: 21300000, guid: a24d8bf1fea714e4496cca64eb1f2bfb, type: 3}
     Amount: 5000
     UnlockAfterSeconds: 1020
   - Slot: 18
     Key: spin
-    Icon: {fileID: 21300000, guid: 3b047ee432cc6a04884002775a4adec8, type: 3}
+    Icon: {fileID: 21300000, guid: 0fa9aae525d663243bccd4f6f069f560, type: 3}
     Amount: 3
     UnlockAfterSeconds: 1080
   x2DurationSeconds: 120
